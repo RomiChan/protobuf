@@ -8,7 +8,10 @@ import (
 type sizeFunc = func(unsafe.Pointer, flags) int
 
 func sizeOfVarint(v uint64) int {
-	return (bits.Len64(v|1) + 6) / 7
+	// This computes 1 + (bits.Len64(v)-1)/7.
+	// 9/64 is a good enough approximation of 1/7
+	// see https://github.com/protocolbuffers/protobuf-go/commit/a30b571f93edc9b3bd5df1dd61ceaeb17aa7f7c5
+	return int(9*uint32(bits.Len64(v))+64) / 64
 }
 
 func sizeOfVarintZigZag(v int64) int {
