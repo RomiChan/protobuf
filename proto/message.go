@@ -144,7 +144,7 @@ const (
 	Varlen  WireType = 2
 	Fixed32 WireType = 5
 	// Wire types 3 and 4 were used for StartGroup and EndGroup, but are
-	// deprecated so we don't expose them here.
+	// deprecated, so we don't expose them here.
 	//
 	// https://developers.google.com/protocol-buffers/docs/encoding#structure
 )
@@ -204,7 +204,7 @@ func Parse(m []byte) (FieldNumber, WireType, RawValue, RawMessage, error) {
 		if len(m) < n {
 			return f, t, nil, m, fmt.Errorf("decoding varint field %d: %w", f, io.ErrUnexpectedEOF)
 		}
-		return f, t, RawValue(m[:n]), m[n:], nil
+		return f, t, m[:n], m[n:], nil
 
 	case Varlen:
 		l, n, err := decodeVarint(m) // length
@@ -214,19 +214,19 @@ func Parse(m []byte) (FieldNumber, WireType, RawValue, RawMessage, error) {
 		if uint64(len(m)-n) < l {
 			return f, t, nil, m, fmt.Errorf("decoding varlen field %d: %w", f, io.ErrUnexpectedEOF)
 		}
-		return f, t, RawValue(m[n : n+int(l)]), m[n+int(l):], nil
+		return f, t, m[n : n+int(l)], m[n+int(l):], nil
 
 	case Fixed32:
 		if len(m) < 4 {
 			return f, t, nil, m, fmt.Errorf("decoding fixed32 field %d: %w", f, io.ErrUnexpectedEOF)
 		}
-		return f, t, RawValue(m[:4]), m[4:], nil
+		return f, t, m[:4], m[4:], nil
 
 	case Fixed64:
 		if len(m) < 8 {
 			return f, t, nil, m, fmt.Errorf("decoding fixed64 field %d: %w", f, io.ErrUnexpectedEOF)
 		}
-		return f, t, RawValue(m[:8]), m[8:], nil
+		return f, t, m[:8], m[8:], nil
 
 	default:
 		return f, t, nil, m, fmt.Errorf("invalid wire type: %d", t)

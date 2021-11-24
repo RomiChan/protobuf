@@ -301,16 +301,8 @@ func structEncodeFuncOf(t reflect.Type, fields []structField) encodeFunc {
 	}
 }
 
-func structDecodeFuncOf(t reflect.Type, fields []structField) decodeFunc {
-	maxFieldNumber := fieldNumber(0)
-
-	for _, f := range fields {
-		if n := f.fieldNumber(); n > maxFieldNumber {
-			maxFieldNumber = n
-		}
-	}
-
-	fieldIndex := make([]*structField, maxFieldNumber+1)
+func structDecodeFuncOf(_ reflect.Type, fields []structField) decodeFunc {
+	fieldIndex := make(map[fieldNumber]*structField, len(fields))
 
 	for i := range fields {
 		f := &fields[i]
@@ -328,14 +320,8 @@ func structDecodeFuncOf(t reflect.Type, fields []structField) decodeFunc {
 				return offset, err
 			}
 
-			i := int(fieldNumber)
-			f := (*structField)(nil)
-
-			if i >= 0 && i < len(fieldIndex) {
-				f = fieldIndex[i]
-			}
-
-			if f == nil {
+			f, ok := fieldIndex[fieldNumber]
+			if ok && f == nil {
 				skip := 0
 				size := uint64(0)
 				switch wireType {
