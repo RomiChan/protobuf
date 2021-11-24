@@ -320,8 +320,8 @@ func structDecodeFuncOf(_ reflect.Type, fields []structField) decodeFunc {
 				return offset, err
 			}
 
-			f, ok := fieldIndex[fieldNumber]
-			if ok && f == nil {
+			f := fieldIndex[fieldNumber]
+			if f == nil {
 				skip := 0
 				size := uint64(0)
 				switch wireType {
