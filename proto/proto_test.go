@@ -77,9 +77,9 @@ type key struct {
 }
 
 type message struct {
-	A int
-	B int
-	C int
+	A int32
+	B int32
+	C int32
 	S submessage
 }
 
@@ -89,7 +89,7 @@ type submessage struct {
 }
 
 type structWithMap struct {
-	M map[int]string
+	M map[int32]string
 }
 
 type custom [16]byte
@@ -114,18 +114,11 @@ type messageWithCustomField struct {
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
-	intVal := 42
+	intVal := int32(42)
 	values := []interface{}{
 		// bool
 		true,
 		false,
-
-		// zig-zag varint
-		0,
-		1,
-		1234567890,
-		-1,
-		-1234567890,
 
 		// sfixed32
 		int32(0),
@@ -138,9 +131,9 @@ func TestMarshalUnmarshal(t *testing.T) {
 		int64(math.MaxInt64),
 
 		// varint
-		uint(0),
-		uint(1),
-		uint(1234567890),
+		uint32(0),
+		uint32(1),
+		uint32(1234567890),
 
 		// fixed32
 		uint32(0),
@@ -175,8 +168,8 @@ func TestMarshalUnmarshal(t *testing.T) {
 		struct{ B bool }{B: false},
 		struct{ B bool }{B: true},
 
-		struct{ I int }{I: 0},
-		struct{ I int }{I: 1},
+		struct{ I int32 }{I: 0},
+		struct{ I int32 }{I: 1},
 
 		struct{ I32 int32 }{I32: 0},
 		struct{ I32 int32 }{I32: -1234567890},
@@ -184,8 +177,8 @@ func TestMarshalUnmarshal(t *testing.T) {
 		struct{ I64 int64 }{I64: 0},
 		struct{ I64 int64 }{I64: -1234567890},
 
-		struct{ U int }{U: 0},
-		struct{ U int }{U: 1},
+		struct{ U int32 }{U: 0},
+		struct{ U int32 }{U: 1},
 
 		struct{ U32 uint32 }{U32: 0},
 		struct{ U32 uint32 }{U32: 1234567890},
@@ -240,10 +233,10 @@ func TestMarshalUnmarshal(t *testing.T) {
 		&[...]byte{3, 2, 1},
 
 		// slices (repeated)
-		struct{ S []int }{S: nil},
-		struct{ S []int }{S: []int{0}},
-		struct{ S []int }{S: []int{0, 0, 0}},
-		struct{ S []int }{S: []int{1, 2, 3}},
+		struct{ S []int32 }{S: nil},
+		struct{ S []int32 }{S: []int32{0}},
+		struct{ S []int32 }{S: []int32{0, 0, 0}},
+		struct{ S []int32 }{S: []int32{1, 2, 3}},
 		struct{ S []string }{S: nil},
 		struct{ S []string }{S: []string{""}},
 		struct{ S []string }{S: []string{"A", "B", "C"}},
@@ -258,24 +251,24 @@ func TestMarshalUnmarshal(t *testing.T) {
 		},
 
 		// maps (repeated)
-		struct{ M map[int]string }{},
-		struct{ M map[int]string }{
-			M: map[int]string{0: ""},
+		struct{ M map[int32]string }{},
+		struct{ M map[int32]string }{
+			M: map[int32]string{0: ""},
 		},
-		struct{ M map[int]string }{
-			M: map[int]string{0: "A", 1: "B", 2: "C"},
+		struct{ M map[int32]string }{
+			M: map[int32]string{0: "A", 1: "B", 2: "C"},
 		},
-		&struct{ M map[int]string }{
-			M: map[int]string{0: "A", 1: "B", 2: "C"},
+		&struct{ M map[int32]string }{
+			M: map[int32]string{0: "A", 1: "B", 2: "C"},
 		},
 		struct {
-			M1 map[int]int
+			M1 map[int32]int32
 			M2 map[string]string
 			M3 map[string]message
 			M4 map[string]*message
-			M5 map[key]uint
+			M5 map[key]uint32
 		}{
-			M1: map[int]int{0: 1},
+			M1: map[int32]int32{0: 1},
 			M2: map[string]string{"": "A"},
 			M3: map[string]message{
 				"m0": message{},
@@ -287,7 +280,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 				"m1": &message{A: 42},
 				"m3": &message{S: submessage{X: "X", Y: "Y"}},
 			},
-			M5: map[key]uint{
+			M5: map[key]uint32{
 				key{Hi: 0, Lo: 0}: 0,
 				key{Hi: 1, Lo: 0}: 1,
 				key{Hi: 0, Lo: 1}: 2,
@@ -296,21 +289,21 @@ func TestMarshalUnmarshal(t *testing.T) {
 		},
 
 		// more complex inlined types use cases
-		struct{ I *int }{},
-		struct{ I *int }{I: new(int)},
-		struct{ I *int }{I: &intVal},
+		struct{ I *int32 }{},
+		struct{ I *int32 }{I: new(int32)},
+		struct{ I *int32 }{I: &intVal},
 		struct{ M *message }{},
 		struct{ M *message }{M: new(message)},
-		struct{ M map[int]int }{},
-		struct{ M map[int]int }{M: map[int]int{}},
+		struct{ M map[int32]int32 }{},
+		struct{ M map[int32]int32 }{M: map[int32]int32{}},
 		struct{ S structWithMap }{
 			S: structWithMap{
-				M: map[int]string{0: "A", 1: "B", 2: "C"},
+				M: map[int32]string{0: "A", 1: "B", 2: "C"},
 			},
 		},
 		&struct{ S structWithMap }{
 			S: structWithMap{
-				M: map[int]string{0: "A", 1: "B", 2: "C"},
+				M: map[int32]string{0: "A", 1: "B", 2: "C"},
 			},
 		},
 
@@ -321,7 +314,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 			Raw: RawMessage{1, 2, 3, 4},
 		},
 		struct {
-			A int
+			A int32
 			B string
 			C RawMessage
 		}{A: 42, B: "Hello World!", C: RawMessage{1, 2, 3, 4}},
@@ -333,7 +326,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 			Custom: custom{1: 42},
 		},
 		struct {
-			A int
+			A int32
 			B string
 			C custom
 		}{A: 42, B: "Hello World!", C: custom{1: 42}},

@@ -205,22 +205,17 @@ func codecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 		return c
 	}
 
-	switch {
-	case implements(t, messageType):
+	if implements(t, messageType) {
 		return messageCodecOf(t)
 	}
 
 	switch t.Kind() {
 	case reflect.Bool:
 		return &boolCodec
-	case reflect.Int:
-		return &intCodec
 	case reflect.Int32:
 		return &int32Codec
 	case reflect.Int64:
 		return &int64Codec
-	case reflect.Uint:
-		return &uintCodec
 	case reflect.Uint32:
 		return &uint32Codec
 	case reflect.Uint64:
@@ -252,9 +247,7 @@ func codecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 	panic("unsupported type: " + t.String())
 }
 
-var (
-	messageType = reflect.TypeOf((*Message)(nil)).Elem()
-)
+var messageType = reflect.TypeOf((*Message)(nil)).Elem()
 
 func implements(t, iface reflect.Type) bool {
 	return t.Implements(iface) || reflect.PtrTo(t).Implements(iface)

@@ -98,7 +98,7 @@ func TestDecodeFromAppend(t *testing.T) {
 	m = AppendFixed64(m, 4, math.Float64bits(1234.0))
 
 	type M struct {
-		I   int
+		I   int32
 		S   string
 		F32 float32
 		F64 float64
