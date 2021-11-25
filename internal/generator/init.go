@@ -51,12 +51,6 @@ type fileInfo struct {
 	allEnumsByPtr         map[*enumInfo]int    // value is index into allEnums
 	allMessagesByPtr      map[*messageInfo]int // value is index into allMessages
 	allMessageFieldsByPtr map[*messageInfo]*structFields
-
-	// needRawDesc specifies whether the generator should emit logic to provide
-	// the legacy raw descriptor in GZIP'd form.
-	// This is updated by enum and message generation logic as necessary,
-	// and checked at the end of file generation.
-	needRawDesc bool
 }
 
 type structFields struct {
@@ -132,42 +126,28 @@ func newFileInfo(file *protogen.File) *fileInfo {
 
 type enumInfo struct {
 	*protogen.Enum
-
-	genJSONMethod    bool
-	genRawDescMethod bool
 }
 
 func newEnumInfo(_ *fileInfo, enum *protogen.Enum) *enumInfo {
 	e := &enumInfo{Enum: enum}
-	e.genJSONMethod = true
-	e.genRawDescMethod = true
 	return e
 }
 
 type messageInfo struct {
 	*protogen.Message
 
-	genRawDescMethod  bool
-	genExtRangeMethod bool
-
 	isTracked bool
-	hasWeak   bool
 }
 
 func newMessageInfo(_ *fileInfo, message *protogen.Message) *messageInfo {
 	m := &messageInfo{Message: message}
-	m.genRawDescMethod = true
-	m.genExtRangeMethod = true
 	m.isTracked = isTrackedMessage(m)
-	for _, field := range m.Fields {
-		m.hasWeak = m.hasWeak || field.Desc.IsWeak()
-	}
 	return m
 }
 
 // isTrackedMessage reports whether field tracking is enabled on the message.
 func isTrackedMessage(m *messageInfo) (tracked bool) {
-	const trackFieldUse_fieldNumber = 37383685
+	const trackFieldUseFieldNumber = 37383685
 
 	// Decode the option from unknown fields to avoid a dependency on the
 	// annotation proto from protoc-gen-go.
@@ -175,7 +155,7 @@ func isTrackedMessage(m *messageInfo) (tracked bool) {
 	for len(b) > 0 {
 		num, typ, n := protowire.ConsumeTag(b)
 		b = b[n:]
-		if num == trackFieldUse_fieldNumber && typ == protowire.VarintType {
+		if num == trackFieldUseFieldNumber && typ == protowire.VarintType {
 			v, _ := protowire.ConsumeVarint(b)
 			tracked = protowire.DecodeBool(v)
 		}

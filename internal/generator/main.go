@@ -44,7 +44,6 @@ import (
 
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/runtime/protoimpl"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -71,20 +70,6 @@ func GenerateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 	}
 
 	return g
-}
-
-// genStandaloneComments prints all leading comments for a FileDescriptorProto
-// location identified by the field number n.
-func genStandaloneComments(g *protogen.GeneratedFile, f *fileInfo, n int32) {
-	loc := f.Desc.SourceLocations().ByPath(protoreflect.SourcePath{n})
-	for _, s := range loc.LeadingDetachedComments {
-		g.P(protogen.Comments(s))
-		g.P()
-	}
-	if s := loc.LeadingComments; s != "" {
-		g.P(protogen.Comments(s))
-		g.P()
-	}
 }
 
 func genGeneratedHeader(_ *protogen.Plugin, g *protogen.GeneratedFile, f *fileInfo) {
@@ -403,11 +388,34 @@ func fieldGoType(g *protogen.GeneratedFile, f *fileInfo, field *protogen.Field) 
 }
 
 func fieldProtobufTagValue(field *protogen.Field) string {
-	var enumName string
-	if field.Desc.Kind() == protoreflect.EnumKind {
-		enumName = protoimpl.X.LegacyEnumName(field.Enum.Desc)
+	fd := field.Desc
+	var tag []string
+	switch fd.Kind() {
+	case protoreflect.BoolKind, protoreflect.EnumKind, protoreflect.Int32Kind, protoreflect.Uint32Kind, protoreflect.Int64Kind, protoreflect.Uint64Kind:
+		tag = append(tag, "varint")
+	case protoreflect.Sint32Kind:
+		tag = append(tag, "zigzag32")
+	case protoreflect.Sint64Kind:
+		tag = append(tag, "zigzag64")
+	case protoreflect.Sfixed32Kind, protoreflect.Fixed32Kind, protoreflect.FloatKind:
+		tag = append(tag, "fixed32")
+	case protoreflect.Sfixed64Kind, protoreflect.Fixed64Kind, protoreflect.DoubleKind:
+		tag = append(tag, "fixed64")
+	case protoreflect.StringKind, protoreflect.BytesKind, protoreflect.MessageKind:
+		tag = append(tag, "bytes")
+	case protoreflect.GroupKind:
+		tag = append(tag, "group")
 	}
-	return MarshalTag(field.Desc, enumName)
+	tag = append(tag, strconv.Itoa(int(fd.Number())))
+	switch fd.Cardinality() {
+	case protoreflect.Optional:
+		tag = append(tag, "opt")
+	case protoreflect.Required:
+		tag = append(tag, "req")
+	case protoreflect.Repeated:
+		tag = append(tag, "rep")
+	}
+	return strings.Join(tag, ",")
 }
 
 func fieldDefaultValue(g *protogen.GeneratedFile, f *fileInfo, m *messageInfo, field *protogen.Field) string {
@@ -534,34 +542,4 @@ func (c trailingComment) String() string {
 		return ""
 	}
 	return s
-}
-
-func MarshalTag(fd protoreflect.FieldDescriptor, enumName string) string {
-	var tag []string
-	switch fd.Kind() {
-	case protoreflect.BoolKind, protoreflect.EnumKind, protoreflect.Int32Kind, protoreflect.Uint32Kind, protoreflect.Int64Kind, protoreflect.Uint64Kind:
-		tag = append(tag, "varint")
-	case protoreflect.Sint32Kind:
-		tag = append(tag, "zigzag32")
-	case protoreflect.Sint64Kind:
-		tag = append(tag, "zigzag64")
-	case protoreflect.Sfixed32Kind, protoreflect.Fixed32Kind, protoreflect.FloatKind:
-		tag = append(tag, "fixed32")
-	case protoreflect.Sfixed64Kind, protoreflect.Fixed64Kind, protoreflect.DoubleKind:
-		tag = append(tag, "fixed64")
-	case protoreflect.StringKind, protoreflect.BytesKind, protoreflect.MessageKind:
-		tag = append(tag, "bytes")
-	case protoreflect.GroupKind:
-		tag = append(tag, "group")
-	}
-	tag = append(tag, strconv.Itoa(int(fd.Number())))
-	switch fd.Cardinality() {
-	case protoreflect.Optional:
-		tag = append(tag, "opt")
-	case protoreflect.Required:
-		tag = append(tag, "req")
-	case protoreflect.Repeated:
-		tag = append(tag, "rep")
-	}
-	return strings.Join(tag, ",")
 }
