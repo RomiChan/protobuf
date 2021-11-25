@@ -2,7 +2,6 @@ package proto
 
 import (
 	"fmt"
-	"io"
 	"reflect"
 	"unsafe"
 )
@@ -23,22 +22,14 @@ func sizeOfBytes(p unsafe.Pointer, flags flags) int {
 	return 0
 }
 
-func encodeBytes(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func encodeBytes(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 	if p != nil {
 		if v := *(*[]byte)(p); v != nil || flags.has(wantzero) {
-			n, err := encodeVarint(b, uint64(len(v)))
-			if err != nil {
-				return n, err
-			}
-			c := copy(b[n:], v)
-			n += c
-			if c < len(v) {
-				err = io.ErrShortBuffer
-			}
-			return n, err
+			b = appendVarint(b, uint64(len(v)))
+			b = append(b, v...)
 		}
 	}
-	return 0, nil
+	return b, nil
 }
 
 func decodeBytes(b []byte, p unsafe.Pointer, _ flags) (int, error) {
@@ -154,13 +145,13 @@ func byteArraySizeFuncOf(n int) sizeFunc {
 }
 
 func byteArrayEncodeFuncOf(n int) encodeFunc {
-	return func(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 		if p != nil {
 			if v := makeBytes(p, n); flags.has(wantzero) || !isZeroBytes(v) {
 				return encodeBytes(b, unsafe.Pointer(&v), noflags)
 			}
 		}
-		return 0, nil
+		return b, nil
 	}
 }
 

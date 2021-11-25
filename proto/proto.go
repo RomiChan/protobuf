@@ -16,22 +16,13 @@ func Size(v interface{}) int {
 func Marshal(v interface{}) ([]byte, error) {
 	t, p := inspect(v)
 	c := cachedCodecOf(t)
-	b := make([]byte, c.size(p, inline|toplevel))
-	_, err := c.encode(b, p, inline|toplevel)
+	b := make([]byte, 0, c.size(p, inline|toplevel))
+	var err error
+	b, err = c.encode(b, p, inline|toplevel)
 	if err != nil {
 		return nil, fmt.Errorf("proto.Marshal(%T): %w", v, err)
 	}
 	return b, nil
-}
-
-func MarshalTo(b []byte, v interface{}) (int, error) {
-	t, p := inspect(v)
-	c := cachedCodecOf(t)
-	n, err := c.encode(b, p, inline|toplevel)
-	if err != nil {
-		err = fmt.Errorf("proto.MarshalTo: %w", err)
-	}
-	return n, err
 }
 
 func Unmarshal(b []byte, v interface{}) error {
@@ -205,10 +196,6 @@ func codecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 		return c
 	}
 
-	if implements(t, messageType) {
-		return messageCodecOf(t)
-	}
-
 	switch t.Kind() {
 	case reflect.Bool:
 		return &boolCodec
@@ -245,10 +232,4 @@ func codecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 	}
 
 	panic("unsupported type: " + t.String())
-}
-
-var messageType = reflect.TypeOf((*Message)(nil)).Elem()
-
-func implements(t, iface reflect.Type) bool {
-	return t.Implements(iface) || reflect.PtrTo(t).Implements(iface)
 }

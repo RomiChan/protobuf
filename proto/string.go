@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"io"
 	"unsafe"
 )
 
@@ -21,22 +20,14 @@ func sizeOfString(p unsafe.Pointer, flags flags) int {
 	return 0
 }
 
-func encodeString(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func encodeString(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 	if p != nil {
 		if v := *(*string)(p); v != "" || flags.has(wantzero) {
-			n, err := encodeVarint(b, uint64(len(v)))
-			if err != nil {
-				return n, err
-			}
-			c := copy(b[n:], v)
-			n += c
-			if c < len(v) {
-				err = io.ErrShortBuffer
-			}
-			return n, err
+			b = appendVarint(b, uint64(len(v)))
+			b = append(b, v...)
 		}
 	}
-	return 0, nil
+	return b, nil
 }
 
 func decodeString(b []byte, p unsafe.Pointer, _ flags) (int, error) {

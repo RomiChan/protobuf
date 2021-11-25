@@ -18,13 +18,13 @@ func sizeOfUint64(p unsafe.Pointer, flags flags) int {
 	return 0
 }
 
-func encodeUint64(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func encodeUint64(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 	if p != nil {
 		if v := *(*uint64)(p); v != 0 || flags.has(wantzero) {
-			return encodeVarint(b, v)
+			b = appendVarint(b, v)
 		}
 	}
-	return 0, nil
+	return b, nil
 }
 
 func decodeUint64(b []byte, p unsafe.Pointer, _ flags) (int, error) {
@@ -49,13 +49,13 @@ func sizeOfFixed64(p unsafe.Pointer, flags flags) int {
 	return 0
 }
 
-func encodeFixed64(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func encodeFixed64(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 	if p != nil {
 		if v := *(*uint64)(p); v != 0 || flags.has(wantzero) {
-			return encodeLE64(b, v)
+			b = encodeLE64(b, v)
 		}
 	}
-	return 0, nil
+	return b, nil
 }
 
 func decodeFixed64(b []byte, p unsafe.Pointer, _ flags) (int, error) {

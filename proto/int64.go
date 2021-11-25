@@ -18,13 +18,13 @@ func sizeOfInt64(p unsafe.Pointer, flags flags) int {
 	return 0
 }
 
-func encodeInt64(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func encodeInt64(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 	if p != nil {
 		if v := *(*int64)(p); v != 0 || flags.has(wantzero) {
-			return encodeVarint(b, flags.uint64(v))
+			b = appendVarint(b, flags.uint64(v))
 		}
 	}
-	return 0, nil
+	return b, nil
 }
 
 func decodeInt64(b []byte, p unsafe.Pointer, flags flags) (int, error) {

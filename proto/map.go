@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"io"
 	"reflect"
 	"sync"
 	"unsafe"
@@ -79,28 +78,24 @@ func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 }
 
 func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
-	keyTag := [1]byte{}
-	valTag := [1]byte{}
-	encodeTag(keyTag[:], 1, f.keyCodec.wire)
-	encodeTag(valTag[:], 2, f.valCodec.wire)
+	keyTag := byte(uint64(1)<<3 | uint64(f.keyCodec.wire))
+	valTag := byte(uint64(2)<<3 | uint64(f.valCodec.wire))
 
-	number := fieldNumber(f.number)
-	mapTag := make([]byte, sizeOfTag(number, varlen)+zeroSize)
-	encodeTag(mapTag, number, varlen)
+	mapTag := appendTag(nil, fieldNumber(f.number), varlen)
+	zero := append(mapTag, 0)
 
-	zero := mapTag
-	mapTag = mapTag[:len(mapTag)-1]
-
-	return func(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 		if p == nil {
-			return 0, nil
+			return b, nil
 		}
 
 		if !flags.has(inline) {
 			p = *(*unsafe.Pointer)(p)
 		}
 
-		offset := 0
+		origLen := len(b)
+		var err error
+
 		m := MapIter{}
 		defer m.Done()
 
@@ -113,90 +108,53 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 			elemSize := keySize + valSize
 
 			if keySize > 0 {
-				elemSize += len(keyTag)
+				elemSize += 1 // keyTagSize
 				if (f.keyFlags & embedded) != 0 {
 					elemSize += sizeOfVarint(uint64(keySize))
 				}
 			}
 
 			if valSize > 0 {
-				elemSize += len(valTag)
+				elemSize += 1 // valTagSize
 				if (f.valFlags & embedded) != 0 {
 					elemSize += sizeOfVarint(uint64(valSize))
 				}
 			}
 
-			n := copy(b[offset:], mapTag)
-			offset += n
-			if n < len(mapTag) {
-				return offset, io.ErrShortBuffer
-			}
-			n, err := encodeVarint(b[offset:], uint64(elemSize))
-			offset += n
-			if err != nil {
-				return offset, err
-			}
+			b = append(b, mapTag...)
+			b = appendVarint(b, uint64(elemSize))
 
 			if keySize > 0 {
-				n := copy(b[offset:], keyTag[:])
-				offset += n
-				if n < len(keyTag) {
-					return offset, io.ErrShortBuffer
-				}
+				b = append(b, keyTag)
 
 				if (f.keyFlags & embedded) != 0 {
-					n, err := encodeVarint(b[offset:], uint64(keySize))
-					offset += n
-					if err != nil {
-						return offset, err
-					}
+					b = appendVarint(b, uint64(keySize))
 				}
 
-				if (len(b) - offset) < keySize {
-					return len(b), io.ErrShortBuffer
-				}
-
-				n, err := f.keyCodec.encode(b[offset:offset+keySize], key, wantzero)
-				offset += n
+				b, err = f.keyCodec.encode(b, key, wantzero)
 				if err != nil {
-					return offset, err
+					return b, err
 				}
 			}
 
 			if valSize > 0 {
-				n := copy(b[offset:], valTag[:])
-				offset += n
-				if n < len(valTag) {
-					return n, io.ErrShortBuffer
-				}
+				b = append(b, valTag)
 
 				if (f.valFlags & embedded) != 0 {
-					n, err := encodeVarint(b[offset:], uint64(valSize))
-					offset += n
-					if err != nil {
-						return offset, err
-					}
+					b = appendVarint(b, uint64(valSize))
 				}
 
-				if (len(b) - offset) < valSize {
-					return len(b), io.ErrShortBuffer
-				}
-
-				n, err := f.valCodec.encode(b[offset:offset+valSize], val, wantzero)
-				offset += n
+				b, err = f.valCodec.encode(b, val, wantzero)
 				if err != nil {
-					return offset, err
+					return b, err
 				}
 			}
 		}
 
-		if offset == 0 {
-			if offset = copy(b, zero); offset < len(zero) {
-				return offset, io.ErrShortBuffer
-			}
+		if len(b) == origLen {
+			b = append(b, zero...)
 		}
-
-		return offset, nil
+		return b, nil
 	}
 }
 

@@ -20,13 +20,13 @@ func sizeOfInt32(p unsafe.Pointer, flags flags) int {
 	return 0
 }
 
-func encodeInt32(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func encodeInt32(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 	if p != nil {
 		if v := *(*int32)(p); v != 0 || flags.has(wantzero) {
-			return encodeVarint(b, flags.uint64(int64(v)))
+			b = appendVarint(b, flags.uint64(int64(v)))
 		}
 	}
-	return 0, nil
+	return b, nil
 }
 
 func decodeInt32(b []byte, p unsafe.Pointer, flags flags) (int, error) {

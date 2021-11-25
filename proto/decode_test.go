@@ -17,7 +17,10 @@ func TestUnarshalFromShortBuffer(t *testing.T) {
 		},
 	}
 
-	b, _ := Marshal(m)
+	b, err := Marshal(&m)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
 
 	for i := range b {
 		switch i {
@@ -35,11 +38,10 @@ func TestUnarshalFromShortBuffer(t *testing.T) {
 }
 
 func BenchmarkDecodeTag(b *testing.B) {
-	c := [8]byte{}
-	n, _ := encodeTag(c[:], 1, varint)
+	c := appendTag(nil, 1, varint)
 
 	for i := 0; i < b.N; i++ {
-		decodeTag(c[:n])
+		decodeTag(c)
 	}
 }
 

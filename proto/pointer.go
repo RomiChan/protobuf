@@ -29,14 +29,14 @@ func pointerSizeFuncOf(t reflect.Type, c *codec) sizeFunc {
 }
 
 func pointerEncodeFuncOf(t reflect.Type, c *codec) encodeFunc {
-	return func(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 		if p != nil {
 			if !flags.has(inline) {
 				p = *(*unsafe.Pointer)(p)
 			}
 			return c.encode(b, p, flags.without(inline).with(wantzero))
 		}
-		return 0, nil
+		return b, nil
 	}
 }
 

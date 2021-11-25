@@ -5,22 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"reflect"
-	"unsafe"
 )
-
-// Message is an interface implemented by types that supported being encoded to
-// and decoded from protobuf.
-type Message interface {
-	// Size is the size of the protobuf representation (in bytes).
-	Size() int
-
-	// Marshal writes the message to the byte slice passed as argument.
-	Marshal([]byte) error
-
-	// Unmarshal reads the message from the byte slice passed as argument.
-	Unmarshal([]byte) error
-}
 
 // RawMessage represents a raw protobuf-encoded message.
 type RawMessage []byte
@@ -154,21 +139,20 @@ func (wt WireType) String() string {
 }
 
 func Append(m RawMessage, f FieldNumber, t WireType, v []byte) RawMessage {
-	b := [20]byte{}
-	n, _ := encodeVarint(b[:], EncodeTag(f, t))
+	b := make(RawMessage, 0, 20)
+	b = appendVarint(b, EncodeTag(f, t))
 	if t == Varlen {
-		n1, _ := encodeVarint(b[n:], uint64(len(v)))
-		n += n1
+		b = appendVarint(b, uint64(len(v)))
 	}
-	m = append(m, b[:n]...)
+	m = append(m, b...)
 	m = append(m, v...)
 	return m
 }
 
 func AppendVarint(m RawMessage, f FieldNumber, v uint64) RawMessage {
-	b := [10]byte{}
-	n, _ := encodeVarint(b[:], v)
-	return Append(m, f, Varint, b[:n])
+	b := make(RawMessage, 0, 10)
+	b = appendVarint(b, v)
+	return Append(m, f, Varint, b)
 }
 
 func AppendVarlen(m RawMessage, f FieldNumber, v []byte) RawMessage {
@@ -283,79 +267,4 @@ func (v RawValue) Fixed32() uint32 {
 // behavior of Fixed64 is undefined.
 func (v RawValue) Fixed64() uint64 {
 	return binary.LittleEndian.Uint64(v)
-}
-
-var (
-	_ Message = &RawMessage{}
-)
-
-func messageCodecOf(t reflect.Type) *codec {
-	return &codec{
-		wire:   varlen,
-		size:   messageSizeFuncOf(t),
-		encode: messageEncodeFuncOf(t),
-		decode: messageDecodeFuncOf(t),
-	}
-}
-
-func messageSizeFuncOf(t reflect.Type) sizeFunc {
-	return func(p unsafe.Pointer, flags flags) int {
-		if p != nil {
-			if m := reflect.NewAt(t, p).Interface().(Message); m != nil {
-				size := m.Size()
-				if flags.has(toplevel) {
-					return size
-				}
-				return sizeOfVarlen(size)
-			}
-		}
-		return 0
-	}
-}
-
-func messageEncodeFuncOf(t reflect.Type) encodeFunc {
-	return func(b []byte, p unsafe.Pointer, flags flags) (int, error) {
-		if p != nil {
-			if m := reflect.NewAt(t, p).Interface().(Message); m != nil {
-				size := m.Size()
-
-				if flags.has(toplevel) {
-					if len(b) < size {
-						return 0, io.ErrShortBuffer
-					}
-					return len(b), m.Marshal(b)
-				}
-
-				vlen := sizeOfVarlen(size)
-				if len(b) < vlen {
-					return 0, io.ErrShortBuffer
-				}
-
-				n, err := encodeVarint(b, uint64(size))
-				if err != nil {
-					return n, err
-				}
-
-				return vlen, m.Marshal(b[n:])
-			}
-		}
-		return 0, nil
-	}
-}
-
-func messageDecodeFuncOf(t reflect.Type) decodeFunc {
-	return func(b []byte, p unsafe.Pointer, flags flags) (int, error) {
-		m := reflect.NewAt(t, p).Interface().(Message)
-
-		if flags.has(toplevel) {
-			return len(b), m.Unmarshal(b)
-		}
-
-		v, n, err := decodeVarlen(b)
-		if err != nil {
-			return n, err
-		}
-
-		return n + len(v), m.Unmarshal(v)
-	}
 }

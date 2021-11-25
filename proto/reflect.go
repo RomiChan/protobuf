@@ -169,11 +169,6 @@ func typeOf(t reflect.Type, seen map[reflect.Type]Type) Type {
 		return r
 	}
 
-	switch {
-	case implements(t, messageType):
-		return &opaqueMessageType{}
-	}
-
 	switch t.Kind() {
 	case reflect.Bool:
 		return &primitiveTypes[Bool]

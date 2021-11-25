@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"io"
 	"reflect"
 	"unsafe"
 
@@ -56,44 +55,26 @@ func sliceSizeFuncOf(t reflect.Type, r *repeatedField) sizeFunc {
 
 func sliceEncodeFuncOf(t reflect.Type, r *repeatedField) encodeFunc {
 	elemSize := alignedSize(t.Elem())
-	tagSize := sizeOfTag(r.fieldNumber, r.wireType)
-	tagData := make([]byte, tagSize)
-	encodeTag(tagData, r.fieldNumber, r.wireType)
-	return func(b []byte, p unsafe.Pointer, _ flags) (int, error) {
-		offset := 0
-
+	tagData := appendTag(nil, r.fieldNumber, r.wireType)
+	return func(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+		var err error
 		if s := (*Slice)(p); s != nil {
 			for i := 0; i < s.Len(); i++ {
 				elem := s.Index(i, elemSize)
-				size := r.codec.size(elem, wantzero)
-
-				n := copy(b[offset:], tagData)
-				offset += n
-				if n < len(tagData) {
-					return offset, io.ErrShortBuffer
-				}
+				b = append(b, tagData...)
 
 				if r.embedded {
-					n, err := encodeVarint(b[offset:], uint64(size))
-					offset += n
-					if err != nil {
-						return offset, err
-					}
+					size := r.codec.size(elem, wantzero)
+					b = appendVarint(b, uint64(size))
 				}
 
-				if (len(b) - offset) < size {
-					return len(b), io.ErrShortBuffer
-				}
-
-				n, err := r.codec.encode(b[offset:offset+size], elem, wantzero)
-				offset += n
+				b, err = r.codec.encode(b, elem, wantzero)
 				if err != nil {
-					return offset, err
+					return b, err
 				}
 			}
 		}
-
-		return offset, nil
+		return b, nil
 	}
 }
 

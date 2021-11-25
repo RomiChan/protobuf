@@ -240,9 +240,9 @@ func structEncodeFuncOf(t reflect.Type, fields []structField) encodeFunc {
 		}
 	}
 
-	return func(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 		if p == nil {
-			return 0, nil
+			return b, nil
 		}
 
 		if !inlined {
@@ -250,36 +250,23 @@ func structEncodeFuncOf(t reflect.Type, fields []structField) encodeFunc {
 		} else {
 			flags = flags.without(toplevel)
 		}
-		offset := 0
 
+		var err error
 		for _, f := range unique {
 			fieldFlags := f.makeFlags(flags)
 			elem := f.pointer(p)
 			size := f.codec.size(elem, fieldFlags)
 
 			if size > 0 {
-				n, err := encodeTag(b[offset:], f.fieldNumber(), f.wireType())
-				offset += n
-				if err != nil {
-					return offset, err
-				}
+				b = appendTag(b, f.fieldNumber(), f.wireType())
 
 				if f.embedded() {
-					n, err := encodeVarint(b[offset:], uint64(size))
-					offset += n
-					if err != nil {
-						return offset, err
-					}
+					b = appendVarint(b, uint64(size))
 				}
 
-				if (len(b) - offset) < size {
-					return len(b), io.ErrShortBuffer
-				}
-
-				n, err = f.codec.encode(b[offset:offset+size], elem, fieldFlags)
-				offset += n
+				b, err = f.codec.encode(b, elem, fieldFlags)
 				if err != nil {
-					return offset, err
+					return b, err
 				}
 
 				flags = flags.without(wantzero)
@@ -287,17 +274,13 @@ func structEncodeFuncOf(t reflect.Type, fields []structField) encodeFunc {
 		}
 
 		for _, f := range repeated {
-			n, err := f.codec.encode(b[offset:], f.pointer(p), f.makeFlags(flags))
-			offset += n
+			b, err = f.codec.encode(b, f.pointer(p), f.makeFlags(flags))
 			if err != nil {
-				return offset, err
-			}
-			if n > 0 {
-				flags = flags.without(wantzero)
+				return b, err
 			}
 		}
 
-		return offset, nil
+		return b, nil
 	}
 }
 

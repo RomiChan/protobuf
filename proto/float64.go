@@ -21,13 +21,13 @@ func sizeOfFloat64(p unsafe.Pointer, flags flags) int {
 	return 0
 }
 
-func encodeFloat64(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func encodeFloat64(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 	if p != nil {
 		if v := *(*float64)(p); v != 0 || flags.has(wantzero) || math.Signbit(v) {
-			return encodeLE64(b, math.Float64bits(v))
+			b = encodeLE64(b, math.Float64bits(v))
 		}
 	}
-	return 0, nil
+	return b, nil
 }
 
 func decodeFloat64(b []byte, p unsafe.Pointer, _ flags) (int, error) {

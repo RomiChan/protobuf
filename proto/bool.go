@@ -19,15 +19,15 @@ func sizeOfBool(p unsafe.Pointer, flags flags) int {
 	return 0
 }
 
-func encodeBool(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func encodeBool(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 	if p != nil && *(*bool)(p) || flags.has(wantzero) {
-		if len(b) == 0 {
-			return 0, io.ErrShortBuffer
+		if *(*bool)(p) {
+			b = append(b, 1)
+		} else {
+			b = append(b, 0)
 		}
-		b[0] = 1
-		return 1, nil
 	}
-	return 0, nil
+	return b, nil
 }
 
 func decodeBool(b []byte, p unsafe.Pointer, _ flags) (int, error) {

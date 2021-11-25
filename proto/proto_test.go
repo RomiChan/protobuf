@@ -2,6 +2,7 @@ package proto
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"reflect"
@@ -9,54 +10,37 @@ import (
 )
 
 func TestEncodeDecodeVarint(t *testing.T) {
-	b := [8]byte{}
+	var b []byte
 
-	n, err := encodeVarint(b[:], 42)
-	if err != nil {
-		t.Fatal(err)
-	}
+	b = appendVarint(b, 42)
 
-	v, n2, err := decodeVarint(b[:n])
+	v, _, err := decodeVarint(b)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if v != 42 {
 		t.Errorf("decoded value mismatch: want %d, got %d", 42, v)
 	}
-	if n2 != n {
-		t.Errorf("decoded byte count mismatch: want %d, got %d", n, n2)
-	}
 }
 
 func TestEncodeDecodeVarintZigZag(t *testing.T) {
-	b := [8]byte{}
+	var b []byte
 
-	n, err := encodeVarintZigZag(b[:], -42)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	v, n2, err := decodeVarintZigZag(b[:n])
+	b = appendVarintZigZag(b, -42)
+	v, _, err := decodeVarintZigZag(b)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if v != -42 {
 		t.Errorf("decoded value mismatch: want %d, got %d", -42, v)
 	}
-	if n2 != n {
-		t.Errorf("decoded byte count mismatch: want %d, got %d", n, n2)
-	}
 }
 
 func TestEncodeDecodeTag(t *testing.T) {
-	b := [8]byte{}
+	var b []byte
 
-	n, err := encodeTag(b[:], 1, varint)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	num, typ, n2, err := decodeTag(b[:n])
+	b = appendTag(b, 1, varint)
+	num, typ, _, err := decodeTag(b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,9 +49,6 @@ func TestEncodeDecodeTag(t *testing.T) {
 	}
 	if typ != varint {
 		t.Errorf("decoded wire type mismatch: want %d, got %d", varint, typ)
-	}
-	if n2 != n {
-		t.Errorf("decoded byte count mismatch: want %d, got %d", n, n2)
 	}
 }
 
@@ -341,7 +322,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 				t.Fatal(err)
 			}
 			if n != len(b) {
-				t.Fatalf("value size and buffer length mismatch (%d != %d)", n, len(b))
+				t.Fatalf("value size and buffer length mismatch (%d != %d) %v to %s", n, len(b), v, hex.EncodeToString(b))
 			}
 
 			p := reflect.New(reflect.TypeOf(v))

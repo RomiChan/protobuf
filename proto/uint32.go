@@ -20,13 +20,13 @@ func sizeOfUint32(p unsafe.Pointer, flags flags) int {
 	return 0
 }
 
-func encodeUint32(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func encodeUint32(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 	if p != nil {
 		if v := *(*uint32)(p); v != 0 || flags.has(wantzero) {
-			return encodeVarint(b, uint64(v))
+			b = appendVarint(b, uint64(v))
 		}
 	}
-	return 0, nil
+	return b, nil
 }
 
 func decodeUint32(b []byte, p unsafe.Pointer, _ flags) (int, error) {
@@ -51,13 +51,13 @@ func sizeOfFixed32(p unsafe.Pointer, flags flags) int {
 	return 0
 }
 
-func encodeFixed32(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func encodeFixed32(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 	if p != nil {
 		if v := *(*uint32)(p); v != 0 || flags.has(wantzero) {
-			return encodeLE32(b, v)
+			b = encodeLE32(b, v)
 		}
 	}
-	return 0, nil
+	return b, nil
 }
 
 func decodeFixed32(b []byte, p unsafe.Pointer, _ flags) (int, error) {
