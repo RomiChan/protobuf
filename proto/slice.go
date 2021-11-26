@@ -8,10 +8,9 @@ import (
 )
 
 type repeatedField struct {
-	codec       *codec
-	fieldNumber fieldNumber
-	wireType    wireType
-	embedded    bool
+	codec    *codec
+	wiretag  uint64
+	embedded bool
 }
 
 func sliceCodecOf(t reflect.Type, f structField, seen map[reflect.Type]*codec) *codec {
@@ -19,10 +18,9 @@ func sliceCodecOf(t reflect.Type, f structField, seen map[reflect.Type]*codec) *
 	seen[t] = s
 
 	r := &repeatedField{
-		codec:       f.codec,
-		fieldNumber: f.fieldNumber(),
-		wireType:    f.wireType(),
-		embedded:    f.embedded(),
+		codec:    f.codec,
+		wiretag:  f.wiretag,
+		embedded: f.embedded(),
 	}
 
 	s.wire = f.codec.wire
@@ -34,7 +32,7 @@ func sliceCodecOf(t reflect.Type, f structField, seen map[reflect.Type]*codec) *
 
 func sliceSizeFuncOf(t reflect.Type, r *repeatedField) sizeFunc {
 	elemSize := alignedSize(t.Elem())
-	tagSize := sizeOfTag(r.fieldNumber, r.wireType)
+	tagSize := sizeOfVarint(r.wiretag)
 	return func(p unsafe.Pointer, _ flags) int {
 		n := 0
 
@@ -55,7 +53,7 @@ func sliceSizeFuncOf(t reflect.Type, r *repeatedField) sizeFunc {
 
 func sliceEncodeFuncOf(t reflect.Type, r *repeatedField) encodeFunc {
 	elemSize := alignedSize(t.Elem())
-	tagData := appendTag(nil, r.fieldNumber, r.wireType)
+	tagData := appendVarint(nil, r.wiretag)
 	return func(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 		var err error
 		if s := (*Slice)(p); s != nil {

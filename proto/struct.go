@@ -56,7 +56,7 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 	seen[t] = c
 
 	numField := t.NumField()
-	number := fieldNumber(1)
+	number := 1
 	fields := make([]structField, 0, numField)
 
 	for i := 0; i < numField; i++ {
@@ -66,8 +66,7 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 		}
 
 		field := structField{
-			wiretag: uint64(number) | uint64(varint),
-			offset:  f.Offset,
+			offset: f.Offset,
 		}
 		if tag, ok := f.Tag.Lookup("protobuf"); ok {
 			t, err := parseStructTag(tag)
@@ -115,6 +114,9 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 					}
 					field.flags |= repeated
 					field.codec = codecOf(elem, seen)
+					if field.wiretag == 0 {
+						field.wiretag = uint64(number)<<3 | uint64(field.codec.wire)
+					}
 					field.codec = sliceCodecOf(f.Type, field, seen)
 				}
 
@@ -122,6 +124,9 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 				key, val := f.Type.Key(), f.Type.Elem()
 				k := codecOf(key, seen)
 				v := codecOf(val, seen)
+				if field.wiretag == 0 {
+					field.wiretag = uint64(number)<<3 | uint64(varlen)
+				}
 				m := &mapField{
 					number:   uint32(field.fieldNumber()),
 					keyCodec: k,
@@ -142,7 +147,7 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 		}
 
 		if field.wiretag == 0 {
-			field.wiretag = uint64(field.fieldNumber())<<3 | uint64(field.codec.wire)
+			field.wiretag = uint64(number)<<3 | uint64(field.codec.wire)
 		}
 		field.tagsize = uint8(sizeOfVarint(field.wiretag))
 		fields = append(fields, field)
