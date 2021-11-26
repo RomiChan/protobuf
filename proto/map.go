@@ -11,7 +11,7 @@ import (
 const zeroSize = 1 // sizeOfVarint(0)
 
 type mapField struct {
-	number   uint32
+	wiretag  uint64
 	keyFlags uint8
 	valFlags uint8
 	keyCodec *codec
@@ -30,7 +30,7 @@ func mapCodecOf(t reflect.Type, f *mapField, seen map[reflect.Type]*codec) *code
 }
 
 func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
-	mapTagSize := sizeOfTag(fieldNumber(f.number), varlen)
+	mapTagSize := sizeOfVarint(f.wiretag)
 	keyTagSize := sizeOfTag(1, f.keyCodec.wire)
 	valTagSize := sizeOfTag(2, f.valCodec.wire)
 	return func(p unsafe.Pointer, flags flags) int {
@@ -79,7 +79,7 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 	keyTag := byte(uint64(1)<<3 | uint64(f.keyCodec.wire))
 	valTag := byte(uint64(2)<<3 | uint64(f.valCodec.wire))
 
-	mapTag := appendTag(nil, fieldNumber(f.number), varlen)
+	mapTag := appendVarint(nil, f.wiretag)
 	zero := append(mapTag, 0)
 
 	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {

@@ -128,7 +128,7 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 					field.wiretag = uint64(number)<<3 | uint64(varlen)
 				}
 				m := &mapField{
-					number:   uint32(field.fieldNumber()),
+					wiretag:  field.wiretag,
 					keyCodec: k,
 					valCodec: v,
 				}
