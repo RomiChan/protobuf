@@ -247,14 +247,14 @@ func TestMarshalUnmarshal(t *testing.T) {
 			M1: map[int32]int32{0: 1},
 			M2: map[string]string{"": "A"},
 			M3: map[string]message{
-				"m0": message{},
-				"m1": message{A: 42},
-				"m3": message{S: submessage{X: "X", Y: "Y"}},
+				"m0": {},
+				"m1": {A: 42},
+				"m3": {S: submessage{X: "X", Y: "Y"}},
 			},
 			M4: map[string]*message{
-				"m0": &message{},
-				"m1": &message{A: 42},
-				"m3": &message{S: submessage{X: "X", Y: "Y"}},
+				"m0": {},
+				"m1": {A: 42},
+				"m3": {S: submessage{X: "X", Y: "Y"}},
 			},
 			M5: map[key]uint32{
 				key{Hi: 0, Lo: 0}: 0,

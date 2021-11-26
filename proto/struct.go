@@ -17,7 +17,7 @@ const (
 
 type structField struct {
 	offset  uintptr
-	number  uint32
+	wiretag uint64
 	tagsize uint8
 	flags   uint8
 	codec   *codec
@@ -28,11 +28,11 @@ func (f *structField) String() string {
 }
 
 func (f *structField) fieldNumber() fieldNumber {
-	return fieldNumber(f.number)
+	return fieldNumber(f.wiretag >> 3)
 }
 
 func (f *structField) wireType() wireType {
-	return f.codec.wire
+	return wireType(f.wiretag & 7)
 }
 
 func (f *structField) embedded() bool {
@@ -66,15 +66,13 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 		}
 
 		field := structField{
-			number: uint32(number),
-			offset: f.Offset,
+			wiretag: uint64(number) | uint64(varint),
+			offset:  f.Offset,
 		}
-		var wire wireType
 		if tag, ok := f.Tag.Lookup("protobuf"); ok {
 			t, err := parseStructTag(tag)
 			if err == nil {
-				field.number = uint32(t.fieldNumber)
-				wire = t.wireType
+				field.wiretag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
 				if t.repeated {
 					field.flags |= repeated
 				}
@@ -125,7 +123,7 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 				k := codecOf(key, seen)
 				v := codecOf(val, seen)
 				m := &mapField{
-					number:   field.number,
+					number:   uint32(field.fieldNumber()),
 					keyCodec: k,
 					valCodec: v,
 				}
@@ -141,15 +139,12 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 			default:
 				field.codec = codecOf(f.Type, seen)
 			}
-
-			// wire type should be set by struct field tag
-			// if not, use the codec type
-			if wire != varint && field.codec.wire != wire {
-				field.codec.wire = wire
-			}
 		}
 
-		field.tagsize = uint8(sizeOfTag(fieldNumber(field.number), field.codec.wire))
+		if field.wiretag == 0 {
+			field.wiretag = uint64(field.fieldNumber())<<3 | uint64(field.codec.wire)
+		}
+		field.tagsize = uint8(sizeOfVarint(field.wiretag))
 		fields = append(fields, field)
 		number++
 	}
@@ -262,7 +257,7 @@ func structEncodeFuncOf(t reflect.Type, fields []structField) encodeFunc {
 			size := f.codec.size(elem, fieldFlags)
 
 			if size > 0 {
-				b = appendTag(b, f.fieldNumber(), f.wireType())
+				b = appendVarint(b, f.wiretag)
 
 				if f.embedded() {
 					b = appendVarint(b, uint64(size))
