@@ -16,7 +16,7 @@ func pointerCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 	return p
 }
 
-func pointerSizeFuncOf(t reflect.Type, c *codec) sizeFunc {
+func pointerSizeFuncOf(_ reflect.Type, c *codec) sizeFunc {
 	return func(p unsafe.Pointer, flags flags) int {
 		if p != nil {
 			if !flags.has(inline) {
@@ -28,7 +28,7 @@ func pointerSizeFuncOf(t reflect.Type, c *codec) sizeFunc {
 	}
 }
 
-func pointerEncodeFuncOf(t reflect.Type, c *codec) encodeFunc {
+func pointerEncodeFuncOf(_ reflect.Type, c *codec) encodeFunc {
 	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 		if p != nil {
 			if !flags.has(inline) {

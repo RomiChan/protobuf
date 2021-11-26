@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
+	"strings"
 	"unsafe"
 )
 
@@ -323,9 +325,9 @@ func structDecodeFuncOf(_ reflect.Type, fields []structField) decodeFunc {
 						}
 					}
 				case fixed32:
-					_, skip, err = decodeLE32(b[offset:])
+					skip = 4
 				case fixed64:
-					_, skip, err = decodeLE64(b[offset:])
+					skip = 8
 				default:
 					err = ErrWireTypeUnknown
 				}
@@ -395,5 +397,95 @@ func structDecodeFuncOf(_ reflect.Type, fields []structField) decodeFunc {
 		}
 
 		return offset, nil
+	}
+}
+
+type structTag struct {
+	name        string
+	enum        string
+	json        string
+	version     int
+	wireType    WireType
+	fieldNumber FieldNumber
+	extensions  map[string]string
+	repeated    bool
+	zigzag      bool
+}
+
+func parseStructTag(tag string) (structTag, error) {
+	t := structTag{
+		version:    2,
+		extensions: make(map[string]string),
+	}
+
+	for i, f := range splitFields(tag) {
+		switch i {
+		case 0:
+			switch f {
+			case "varint":
+				t.wireType = Varint
+			case "bytes":
+				t.wireType = Varlen
+			case "fixed32":
+				t.wireType = Fixed32
+			case "fixed64":
+				t.wireType = Fixed64
+			case "zigzag32":
+				t.wireType = Varint
+				t.zigzag = true
+			case "zigzag64":
+				t.wireType = Varint
+				t.zigzag = true
+			default:
+				return t, fmt.Errorf("unsupported wire type in struct tag %q: %s", tag, f)
+			}
+
+		case 1:
+			n, err := strconv.Atoi(f)
+			if err != nil {
+				return t, fmt.Errorf("unsupported field number in struct tag %q: %w", tag, err)
+			}
+			t.fieldNumber = FieldNumber(n)
+
+		case 2:
+			switch f {
+			case "opt":
+				// not sure what this is for
+			case "rep":
+				t.repeated = true
+			default:
+				return t, fmt.Errorf("unsupported field option in struct tag %q: %s", tag, f)
+			}
+
+		default:
+			name, value := splitNameValue(f)
+			switch name {
+			case "name":
+				t.name = value
+			case "enum":
+				t.enum = value
+			case "json":
+				t.json = value
+			case "proto3":
+				t.version = 3
+			default:
+				t.extensions[name] = value
+			}
+		}
+	}
+
+	return t, nil
+}
+
+func splitFields(s string) []string {
+	return strings.Split(s, ",")
+}
+
+func splitNameValue(s string) (name, value string) {
+	i := strings.IndexByte(s, '=')
+	if i < 0 {
+		return strings.TrimSpace(s), ""
+	} else {
+		return strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+1:])
 	}
 }
