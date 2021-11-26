@@ -20,7 +20,7 @@ func TestParseStructTag(t *testing.T) {
 			tag: structTag{
 				name:        "next",
 				version:     3,
-				wireType:    Varlen,
+				wireType:    varlen,
 				fieldNumber: 1,
 				extensions:  map[string]string{},
 				repeated:    true,
@@ -32,7 +32,7 @@ func TestParseStructTag(t *testing.T) {
 			tag: structTag{
 				name:        "key",
 				version:     3,
-				wireType:    Varlen,
+				wireType:    varlen,
 				fieldNumber: 5,
 				extensions:  map[string]string{},
 			},
@@ -43,7 +43,7 @@ func TestParseStructTag(t *testing.T) {
 			tag: structTag{
 				name:        "seed",
 				version:     3,
-				wireType:    Fixed64,
+				wireType:    fixed64,
 				fieldNumber: 6,
 				extensions:  map[string]string{},
 			},
@@ -55,7 +55,7 @@ func TestParseStructTag(t *testing.T) {
 				name:        "expire_after",
 				json:        "expireAfter",
 				version:     3,
-				wireType:    Varint,
+				wireType:    varint,
 				fieldNumber: 8,
 				extensions:  map[string]string{},
 			},
@@ -67,7 +67,7 @@ func TestParseStructTag(t *testing.T) {
 				name:        "batch_key",
 				json:        "batchKey",
 				version:     3,
-				wireType:    Varlen,
+				wireType:    varlen,
 				fieldNumber: 17,
 				extensions: map[string]string{
 					"customtype": "U128",

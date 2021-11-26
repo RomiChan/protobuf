@@ -4,16 +4,6 @@ import (
 	"unsafe"
 )
 
-// EncodeTag encodes a pair of field number and wire type into a protobuf tag.
-func EncodeTag(f FieldNumber, t WireType) uint64 {
-	return uint64(f)<<3 | uint64(t)
-}
-
-// EncodeZigZag returns v as a zig-zag encoded value.
-func EncodeZigZag(v int64) uint64 {
-	return encodeZigZag64(v)
-}
-
 func encodeZigZag64(v int64) uint64 {
 	return (uint64(v) << 1) ^ uint64(v>>63)
 }

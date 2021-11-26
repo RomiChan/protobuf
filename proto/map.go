@@ -8,12 +8,10 @@ import (
 	. "github.com/RomiChan/protobuf/internal/runtime_reflect"
 )
 
-const (
-	zeroSize = 1 // sizeOfVarint(0)
-)
+const zeroSize = 1 // sizeOfVarint(0)
 
 type mapField struct {
-	number   uint16
+	number   uint32
 	keyFlags uint8
 	valFlags uint8
 	keyCodec *codec

@@ -7,16 +7,6 @@ import (
 	"unsafe"
 )
 
-// DecodeTag reverses the encoding applied by EncodeTag.
-func DecodeTag(tag uint64) (FieldNumber, WireType) {
-	return FieldNumber(tag >> 3), WireType(tag & 7)
-}
-
-// DecodeZigZag reverses the encoding applied by EncodeZigZag.
-func DecodeZigZag(v uint64) int64 {
-	return decodeZigZag64(v)
-}
-
 func decodeZigZag64(v uint64) int64 {
 	return int64(v>>1) ^ -(int64(v) & 1)
 }

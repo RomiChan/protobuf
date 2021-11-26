@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -84,10 +83,6 @@ func (c *custom) MarshalTo(b []byte) (int, error) {
 func (c *custom) Unmarshal(b []byte) error {
 	copy(c[:], b)
 	return nil
-}
-
-type messageWithRawMessage struct {
-	Raw RawMessage
 }
 
 type messageWithCustomField struct {
@@ -288,18 +283,6 @@ func TestMarshalUnmarshal(t *testing.T) {
 			},
 		},
 
-		// raw messages
-		RawMessage(nil),
-		RawMessage{0x08, 0x96, 0x01},
-		messageWithRawMessage{
-			Raw: RawMessage{1, 2, 3, 4},
-		},
-		struct {
-			A int32
-			B string
-			C RawMessage
-		}{A: 42, B: "Hello World!", C: RawMessage{1, 2, 3, 4}},
-
 		// custom messages
 		custom{},
 		custom{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
@@ -336,12 +319,6 @@ func TestMarshalUnmarshal(t *testing.T) {
 			}
 		})
 	}
-}
-
-func makeVarint(v uint64) []byte {
-	b := [12]byte{}
-	n := binary.PutUvarint(b[:], v)
-	return b[:n]
 }
 
 func TestIssue106(t *testing.T) {

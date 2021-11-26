@@ -16,10 +16,10 @@ const (
 )
 
 type structField struct {
-	number  uint16
+	offset  uintptr
+	number  uint32
 	tagsize uint8
 	flags   uint8
-	offset  uint32
 	codec   *codec
 }
 
@@ -44,7 +44,7 @@ func (f *structField) repeated() bool {
 }
 
 func (f *structField) pointer(p unsafe.Pointer) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(p) + uintptr(f.offset))
+	return unsafe.Pointer(uintptr(p) + f.offset)
 }
 
 func (f *structField) makeFlags(base flags) flags {
@@ -61,21 +61,20 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 
 	for i := 0; i < numField; i++ {
 		f := t.Field(i)
-
 		if f.PkgPath != "" {
 			continue // unexported
 		}
 
 		field := structField{
-			number: uint16(number),
-			offset: uint32(f.Offset),
+			number: uint32(number),
+			offset: f.Offset,
 		}
 		var wire wireType
 		if tag, ok := f.Tag.Lookup("protobuf"); ok {
 			t, err := parseStructTag(tag)
 			if err == nil {
-				field.number = uint16(t.fieldNumber)
-				wire = wireType(t.wireType)
+				field.number = uint32(t.fieldNumber)
+				wire = t.wireType
 				if t.repeated {
 					field.flags |= repeated
 				}
@@ -83,14 +82,14 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 					field.flags |= zigzag
 				}
 				switch t.wireType {
-				case Fixed32:
+				case fixed32:
 					switch baseKindOf(f.Type) {
 					case reflect.Uint32:
 						field.codec = fixPtrCodec(f.Type, &fixed32Codec)
 					case reflect.Float32:
 						field.codec = fixPtrCodec(f.Type, &float32Codec)
 					}
-				case Fixed64:
+				case fixed64:
 					switch baseKindOf(f.Type) {
 					case reflect.Uint64:
 						field.codec = fixPtrCodec(f.Type, &fixed64Codec)
@@ -405,8 +404,8 @@ type structTag struct {
 	enum        string
 	json        string
 	version     int
-	wireType    WireType
-	fieldNumber FieldNumber
+	wireType    wireType
+	fieldNumber fieldNumber
 	extensions  map[string]string
 	repeated    bool
 	zigzag      bool
@@ -423,18 +422,18 @@ func parseStructTag(tag string) (structTag, error) {
 		case 0:
 			switch f {
 			case "varint":
-				t.wireType = Varint
+				t.wireType = varint
 			case "bytes":
-				t.wireType = Varlen
+				t.wireType = varlen
 			case "fixed32":
-				t.wireType = Fixed32
+				t.wireType = fixed32
 			case "fixed64":
-				t.wireType = Fixed64
+				t.wireType = fixed64
 			case "zigzag32":
-				t.wireType = Varint
+				t.wireType = varint
 				t.zigzag = true
 			case "zigzag64":
-				t.wireType = Varint
+				t.wireType = varint
 				t.zigzag = true
 			default:
 				return t, fmt.Errorf("unsupported wire type in struct tag %q: %s", tag, f)
@@ -445,7 +444,7 @@ func parseStructTag(tag string) (structTag, error) {
 			if err != nil {
 				return t, fmt.Errorf("unsupported field number in struct tag %q: %w", tag, err)
 			}
-			t.fieldNumber = FieldNumber(n)
+			t.fieldNumber = fieldNumber(n)
 
 		case 2:
 			switch f {
