@@ -117,9 +117,6 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 					field.flags |= repeated
 					field.codec = codecOf(elem, seen)
 					field.codec = sliceCodecOf(f.Type, field, seen)
-					if wire != varint && field.codec.wire != wire {
-						field.codec.wire = wire
-					}
 				}
 
 			case reflect.Map:
@@ -142,6 +139,12 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 
 			default:
 				field.codec = codecOf(f.Type, seen)
+			}
+
+			// wire type should be set by struct field tag
+			// if not, use the codec type
+			if wire != varint && field.codec.wire != wire {
+				field.codec.wire = wire
 			}
 		}
 
