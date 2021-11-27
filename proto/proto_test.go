@@ -362,3 +362,98 @@ func TestBoolPointer(t *testing.T) {
 		t.Fatalf("mismatch m!=b")
 	}
 }
+
+func TestPrivateField(t *testing.T) {
+	type private struct {
+		a uint64 `protobuf:"varint,1,opt"`
+		b uint64 `protobuf:"varint,2,opt"`
+	}
+	type public struct {
+		A uint64 `protobuf:"varint,1,opt"`
+		B uint64 `protobuf:"varint,2,opt"`
+	}
+	s := &private{1, 2}
+	if Size(s) != 0 {
+		t.Errorf("Size of private field should be zero.")
+	}
+	data, err := Marshal(s)
+	if err != nil {
+		t.Errorf("Marshal failed: %v", err)
+	}
+	if len(data) != 0 {
+		t.Errorf("Marshal of private field should be empty.")
+	}
+
+	data, err = Marshal(&public{2, 1})
+	if err != nil {
+		t.Errorf("Marshal failed: %v", err)
+	}
+	if len(data) == 0 {
+		t.Errorf("Marshal of public field should not be empty.")
+	}
+	err = Unmarshal(data, s)
+	if err != nil {
+		t.Errorf("Unmarshal failed: %v", err)
+	}
+	if s.a == 2 || s.b == 1 {
+		t.Errorf("Unmarshal of private field: %v", s)
+	}
+}
+
+func TestFixed(t *testing.T) {
+	type message struct {
+		Fixed32 uint32 `protobuf:"fixed32,1,opt"`
+		Fixed64 uint64 `protobuf:"fixed64,2,opt"`
+	}
+	m := &message{
+		Fixed32: 0x01020304,
+		Fixed64: 0x0102030405060708,
+	}
+	if Size(m) != 14 { // 1+4+1+8
+		t.Fatalf("Size of struct with fixed32 and fixed64 fields is not 14.")
+	}
+	b, err := Marshal(m)
+	if err != nil {
+		t.Fatalf("proto.Marshal failed: %v", err)
+	}
+	var m2 message
+	if err := Unmarshal(b, &m2); err != nil {
+		t.Fatalf("proto.Unmarshal failed: %v", err)
+	}
+	if m2.Fixed32 != 0x01020304 {
+		t.Errorf("m2.Fixed32 = %x, want 0x01020304", m2.Fixed32)
+	}
+	if m2.Fixed64 != 0x0102030405060708 {
+		t.Errorf("m2.Fixed64 = %x, want 0x0102030405060708", m2.Fixed64)
+	}
+}
+
+func TestFixedPointer(t *testing.T) {
+	type message struct {
+		Fixed32 *uint32 `protobuf:"fixed32,1,opt"`
+		Fixed64 *uint64 `protobuf:"fixed64,2,opt"`
+	}
+	var fixed32 uint32 = 0x01020304
+	var fixed64 uint64 = 0x0102030405060708
+	m := &message{
+		Fixed32: &fixed32,
+		Fixed64: &fixed64,
+	}
+	if Size(m) != 14 { // 1+4+1+8
+		t.Fatalf("Size of struct with fixed32 and fixed64 fields is not 14.")
+	}
+	b, err := Marshal(m)
+	if err != nil {
+		t.Fatalf("proto.Marshal failed: %v", err)
+	}
+	var m2 message
+	if err := Unmarshal(b, &m2); err != nil {
+		t.Fatalf("proto.Unmarshal failed: %v", err)
+	}
+	if *m2.Fixed32 != 0x01020304 {
+		t.Errorf("m2.Fixed32 = %x, want 0x01020304", m2.Fixed32)
+	}
+	if *m2.Fixed64 != 0x0102030405060708 {
+		t.Errorf("m2.Fixed64 = %x, want 0x0102030405060708", m2.Fixed64)
+	}
+}
