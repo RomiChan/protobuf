@@ -7,7 +7,6 @@ import (
 )
 
 var bytesCodec = codec{
-	wire:   varlen,
 	size:   sizeOfBytes,
 	encode: encodeBytes,
 	decode: decodeBytes,
@@ -125,7 +124,6 @@ func isZeroUint64(b []uint64) bool {
 func byteArrayCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 	n := t.Len()
 	c := &codec{
-		wire:   varlen,
 		size:   byteArraySizeFuncOf(n),
 		encode: byteArrayEncodeFuncOf(n),
 		decode: byteArrayDecodeFuncOf(n),

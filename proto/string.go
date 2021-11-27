@@ -5,7 +5,6 @@ import (
 )
 
 var stringCodec = codec{
-	wire:   varlen,
 	size:   sizeOfString,
 	encode: encodeString,
 	decode: decodeString,

@@ -3,7 +3,6 @@ package proto
 import "unsafe"
 
 var uint64Codec = codec{
-	wire:   varint,
 	size:   sizeOfUint64,
 	encode: encodeUint64,
 	decode: decodeUint64,
@@ -34,7 +33,6 @@ func decodeUint64(b []byte, p unsafe.Pointer, _ flags) (int, error) {
 }
 
 var fixed64Codec = codec{
-	wire:   fixed64,
 	size:   sizeOfFixed64,
 	encode: encodeFixed64,
 	decode: decodeFixed64,

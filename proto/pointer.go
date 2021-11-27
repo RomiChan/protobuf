@@ -9,7 +9,6 @@ func pointerCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 	p := new(codec)
 	seen[t] = p
 	c := codecOf(t.Elem(), seen)
-	p.wire = c.wire
 	p.size = pointerSizeFuncOf(t, c)
 	p.encode = pointerEncodeFuncOf(t, c)
 	p.decode = pointerDecodeFuncOf(t, c)

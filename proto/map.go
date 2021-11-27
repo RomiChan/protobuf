@@ -11,18 +11,19 @@ import (
 const zeroSize = 1 // sizeOfVarint(0)
 
 type mapField struct {
-	wiretag  uint64
-	keyFlags uint8
-	valFlags uint8
-	keyCodec *codec
-	valCodec *codec
+	wiretag    uint64
+	keyFlags   uint8
+	valFlags   uint8
+	keyWireTag uint64
+	keyCodec   *codec
+	valWireTag uint64
+	valCodec   *codec
 }
 
 func mapCodecOf(t reflect.Type, f *mapField, seen map[reflect.Type]*codec) *codec {
 	m := new(codec)
 	seen[t] = m
 
-	m.wire = varlen
 	m.size = mapSizeFuncOf(t, f)
 	m.encode = mapEncodeFuncOf(t, f)
 	m.decode = mapDecodeFuncOf(t, f, seen)
@@ -31,8 +32,10 @@ func mapCodecOf(t reflect.Type, f *mapField, seen map[reflect.Type]*codec) *code
 
 func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 	mapTagSize := sizeOfVarint(f.wiretag)
-	keyTagSize := sizeOfTag(1, f.keyCodec.wire)
-	valTagSize := sizeOfTag(2, f.valCodec.wire)
+	const (
+		keyTagSize = 1 // sizeOfTag(1, f.keyCodec.wire)
+		valTagSize = 1 // sizeOfTag(2, f.valCodec.wire)
+	)
 	return func(p unsafe.Pointer, flags flags) int {
 		if p == nil {
 			return 0
@@ -76,9 +79,6 @@ func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 }
 
 func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
-	keyTag := byte(uint64(1)<<3 | uint64(f.keyCodec.wire))
-	valTag := byte(uint64(2)<<3 | uint64(f.valCodec.wire))
-
 	mapTag := appendVarint(nil, f.wiretag)
 	zero := append(mapTag, 0)
 
@@ -123,7 +123,7 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 			b = appendVarint(b, uint64(elemSize))
 
 			if keySize > 0 {
-				b = append(b, keyTag)
+				b = appendVarint(b, f.keyWireTag)
 
 				if (f.keyFlags & embedded) != 0 {
 					b = appendVarint(b, uint64(keySize))
@@ -136,7 +136,7 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 			}
 
 			if valSize > 0 {
-				b = append(b, valTag)
+				b = appendVarint(b, f.valWireTag)
 
 				if (f.valFlags & embedded) != 0 {
 					b = appendVarint(b, uint64(valSize))

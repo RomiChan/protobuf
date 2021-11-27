@@ -6,7 +6,6 @@ import (
 )
 
 var boolCodec = codec{
-	wire:   varint,
 	size:   sizeOfBool,
 	encode: encodeBool,
 	decode: decodeBool,

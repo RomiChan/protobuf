@@ -18,9 +18,9 @@ const (
 type structField struct {
 	offset  uintptr
 	wiretag uint64
+	codec   *codec
 	tagsize uint8
 	flags   uint8
-	codec   *codec
 }
 
 func (f *structField) String() string {
@@ -52,13 +52,11 @@ func (f *structField) makeFlags(base flags) flags {
 }
 
 func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
-	c := &codec{wire: varlen}
+	c := new(codec)
 	seen[t] = c
 
 	numField := t.NumField()
-	number := 1
 	fields := make([]structField, 0, numField)
-
 	for i := 0; i < numField; i++ {
 		f := t.Field(i)
 		if f.PkgPath != "" {
@@ -131,6 +129,12 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 					keyCodec: k,
 					valCodec: v,
 				}
+
+				t, _ := parseStructTag(f.Tag.Get("protobuf_key"))
+				m.keyWireTag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
+				t, _ = parseStructTag(f.Tag.Get("protobuf_val"))
+				m.valWireTag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
+
 				if baseKindOf(key) == reflect.Struct {
 					m.keyFlags |= embedded
 				}
@@ -147,7 +151,6 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 
 		field.tagsize = uint8(sizeOfVarint(field.wiretag))
 		fields = append(fields, field)
-		number++
 	}
 
 	c.size = structSizeFuncOf(t, fields)
@@ -170,7 +173,6 @@ func baseTypeOf(t reflect.Type) reflect.Type {
 func fixPtrCodec(t reflect.Type, c *codec) *codec {
 	if t.Kind() == reflect.Ptr {
 		p := new(codec)
-		p.wire = c.wire
 		p.size = pointerSizeFuncOf(t, c)
 		p.encode = pointerEncodeFuncOf(t, c)
 		p.decode = pointerDecodeFuncOf(t, c)

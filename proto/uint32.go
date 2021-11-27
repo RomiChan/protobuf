@@ -5,7 +5,6 @@ import (
 )
 
 var uint32Codec = codec{
-	wire:   varint,
 	size:   sizeOfUint32,
 	encode: encodeUint32,
 	decode: decodeUint32,
@@ -36,7 +35,6 @@ func decodeUint32(b []byte, p unsafe.Pointer, _ flags) (int, error) {
 }
 
 var fixed32Codec = codec{
-	wire:   fixed32,
 	size:   sizeOfFixed32,
 	encode: encodeFixed32,
 	decode: decodeFixed32,

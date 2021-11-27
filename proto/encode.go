@@ -8,10 +8,6 @@ func encodeZigZag64(v int64) uint64 {
 	return (uint64(v) << 1) ^ uint64(v>>63)
 }
 
-func encodeZigZag32(v int32) uint32 {
-	return (uint32(v) << 1) ^ uint32(v>>31)
-}
-
 type encodeFunc = func([]byte, unsafe.Pointer, flags) ([]byte, error)
 
 func appendVarint(b []byte, v uint64) []byte {

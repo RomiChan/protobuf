@@ -3,7 +3,6 @@ package proto
 import "unsafe"
 
 var int64Codec = codec{
-	wire:   varint,
 	size:   sizeOfInt64,
 	encode: encodeInt64,
 	decode: decodeInt64,

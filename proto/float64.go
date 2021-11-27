@@ -6,7 +6,6 @@ import (
 )
 
 var float64Codec = codec{
-	wire:   fixed64,
 	size:   sizeOfFloat64,
 	encode: encodeFloat64,
 	decode: decodeFloat64,

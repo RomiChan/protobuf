@@ -5,7 +5,6 @@ import (
 )
 
 var int32Codec = codec{
-	wire:   varint,
 	size:   sizeOfInt32,
 	encode: encodeInt32,
 	decode: decodeInt32,

@@ -23,7 +23,6 @@ func sliceCodecOf(t reflect.Type, f structField, seen map[reflect.Type]*codec) *
 		embedded: f.embedded(),
 	}
 
-	s.wire = f.codec.wire
 	s.size = sliceSizeFuncOf(t, r)
 	s.encode = sliceEncodeFuncOf(t, r)
 	s.decode = sliceDecodeFuncOf(t, r)

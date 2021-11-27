@@ -139,7 +139,6 @@ func (wt wireType) String() string {
 }
 
 type codec struct {
-	wire   wireType
 	size   sizeFunc
 	encode encodeFunc
 	decode decodeFunc

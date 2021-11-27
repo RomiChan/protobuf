@@ -6,7 +6,6 @@ import (
 )
 
 var float32Codec = codec{
-	wire:   fixed32,
 	size:   sizeOfFloat32,
 	encode: encodeFloat32,
 	decode: decodeFloat32,
