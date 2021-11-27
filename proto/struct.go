@@ -56,7 +56,7 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 	seen[t] = c
 
 	numField := t.NumField()
-	fields := make([]structField, 0, numField)
+	fields := make([]*structField, 0, numField)
 	for i := 0; i < numField; i++ {
 		f := t.Field(i)
 		if f.PkgPath != "" {
@@ -150,12 +150,16 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 		}
 
 		field.tagsize = uint8(sizeOfVarint(field.wiretag))
-		fields = append(fields, field)
+		fields = append(fields, &field)
 	}
 
-	c.size = structSizeFuncOf(t, fields)
-	c.encode = structEncodeFuncOf(t, fields)
-	c.decode = structDecodeFuncOf(t, fields)
+	// copy to save capacity
+	fields2 := make([]*structField, len(fields))
+	copy(fields2, fields)
+
+	c.size = structSizeFuncOf(t, fields2)
+	c.encode = structEncodeFuncOf(t, fields2)
+	c.decode = structDecodeFuncOf(t, fields2)
 	return c
 }
 
@@ -181,19 +185,8 @@ func fixPtrCodec(t reflect.Type, c *codec) *codec {
 	return c
 }
 
-func structSizeFuncOf(t reflect.Type, fields []structField) sizeFunc {
-	var inlined = inlined(t)
-	var unique, repeated []*structField
-
-	for i := range fields {
-		f := &fields[i]
-		if f.repeated() {
-			repeated = append(repeated, f)
-		} else {
-			unique = append(unique, f)
-		}
-	}
-
+func structSizeFuncOf(t reflect.Type, fields []*structField) sizeFunc {
+	inlined := inlined(t)
 	return func(p unsafe.Pointer, flags flags) int {
 		if p == nil {
 			return 0
@@ -206,7 +199,15 @@ func structSizeFuncOf(t reflect.Type, fields []structField) sizeFunc {
 		}
 		n := 0
 
-		for _, f := range unique {
+		for _, f := range fields {
+			if f.repeated() {
+				size := f.codec.size(f.pointer(p), f.makeFlags(flags))
+				if size > 0 {
+					n += size
+					flags = flags.without(wantzero)
+				}
+				continue
+			}
 			size := f.codec.size(f.pointer(p), f.makeFlags(flags))
 			if size > 0 {
 				n += int(f.tagsize) + size
@@ -216,32 +217,12 @@ func structSizeFuncOf(t reflect.Type, fields []structField) sizeFunc {
 				flags = flags.without(wantzero)
 			}
 		}
-
-		for _, f := range repeated {
-			size := f.codec.size(f.pointer(p), f.makeFlags(flags))
-			if size > 0 {
-				n += size
-				flags = flags.without(wantzero)
-			}
-		}
-
 		return n
 	}
 }
 
-func structEncodeFuncOf(t reflect.Type, fields []structField) encodeFunc {
-	var inlined = inlined(t)
-	var unique, repeated []*structField
-
-	for i := range fields {
-		f := &fields[i]
-		if f.repeated() {
-			repeated = append(repeated, f)
-		} else {
-			unique = append(unique, f)
-		}
-	}
-
+func structEncodeFuncOf(t reflect.Type, fields []*structField) encodeFunc {
+	inlined := inlined(t)
 	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 		if p == nil {
 			return b, nil
@@ -254,11 +235,17 @@ func structEncodeFuncOf(t reflect.Type, fields []structField) encodeFunc {
 		}
 
 		var err error
-		for _, f := range unique {
+		for _, f := range fields {
+			if f.repeated() {
+				b, err = f.codec.encode(b, f.pointer(p), f.makeFlags(flags))
+				if err != nil {
+					return b, err
+				}
+				continue
+			}
 			fieldFlags := f.makeFlags(flags)
 			elem := f.pointer(p)
 			size := f.codec.size(elem, fieldFlags)
-
 			if size > 0 {
 				b = appendVarint(b, f.wiretag)
 
@@ -274,23 +261,14 @@ func structEncodeFuncOf(t reflect.Type, fields []structField) encodeFunc {
 				flags = flags.without(wantzero)
 			}
 		}
-
-		for _, f := range repeated {
-			b, err = f.codec.encode(b, f.pointer(p), f.makeFlags(flags))
-			if err != nil {
-				return b, err
-			}
-		}
-
 		return b, nil
 	}
 }
 
-func structDecodeFuncOf(_ reflect.Type, fields []structField) decodeFunc {
+func structDecodeFuncOf(_ reflect.Type, fields []*structField) decodeFunc {
 	fieldIndex := make(map[fieldNumber]*structField, len(fields))
-
 	for i := range fields {
-		f := &fields[i]
+		f := fields[i]
 		fieldIndex[f.fieldNumber()] = f
 	}
 
