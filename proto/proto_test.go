@@ -343,3 +343,22 @@ func TestIssue106(t *testing.T) {
 		t.Error("unexpected value:", m2.I)
 	}
 }
+
+func TestBoolPointer(t *testing.T) {
+	type message struct {
+		A *bool `protobuf:"varint,1,opt"`
+	}
+	var m message
+	data, err := Marshal(&m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b message
+	err = Unmarshal(data, &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(m, b) {
+		t.Fatalf("mismatch m!=b")
+	}
+}

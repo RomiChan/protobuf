@@ -13,18 +13,22 @@ var boolCodec = codec{
 }
 
 func sizeOfBool(p unsafe.Pointer, flags flags) int {
-	if p != nil && *(*bool)(p) || flags.has(wantzero) {
-		return 1
+	if p != nil {
+		if *(*bool)(p) || flags.has(wantzero) {
+			return 1
+		}
 	}
 	return 0
 }
 
 func encodeBool(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
-	if p != nil && *(*bool)(p) || flags.has(wantzero) {
-		if *(*bool)(p) {
-			b = append(b, 1)
-		} else {
-			b = append(b, 0)
+	if p != nil {
+		if *(*bool)(p) || flags.has(wantzero) {
+			if *(*bool)(p) {
+				b = append(b, 1)
+			} else {
+				b = append(b, 0)
+			}
 		}
 	}
 	return b, nil
