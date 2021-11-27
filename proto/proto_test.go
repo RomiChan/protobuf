@@ -52,45 +52,23 @@ func TestEncodeDecodeTag(t *testing.T) {
 }
 
 type key struct {
-	Hi uint64
-	Lo uint64
+	Hi uint64 `protobuf:"varint,1,opt"`
+	Lo uint64 `protobuf:"varint,2,opt"`
 }
 
 type message struct {
-	A int32
-	B int32
-	C int32
-	S submessage
+	A int32       `protobuf:"varint,1,opt"`
+	B int32       `protobuf:"varint,2,opt"`
+	C int32       `protobuf:"varint,3,opt"`
+	S *submessage `protobuf:"bytes,4,opt"`
 }
 
 type submessage struct {
-	X string
-	Y string
-}
-
-type structWithMap struct {
-	M map[int32]string
-}
-
-type custom [16]byte
-
-func (c *custom) Size() int { return len(c) }
-
-func (c *custom) MarshalTo(b []byte) (int, error) {
-	return copy(b, c[:]), nil
-}
-
-func (c *custom) Unmarshal(b []byte) error {
-	copy(c[:], b)
-	return nil
-}
-
-type messageWithCustomField struct {
-	Custom custom
+	X string `protobuf:"bytes,1,opt"`
+	Y string `protobuf:"bytes,2,opt"`
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
-	intVal := int32(42)
 	values := []interface{}{
 		// bool
 		true,
@@ -141,64 +119,66 @@ func TestMarshalUnmarshal(t *testing.T) {
 		[]byte("Hello World!"),
 
 		// messages
-		struct{ B bool }{B: false},
-		struct{ B bool }{B: true},
+		/*
+			struct{ B bool }{B: false},
+			struct{ B bool }{B: true},
 
-		struct{ I int32 }{I: 0},
-		struct{ I int32 }{I: 1},
+			struct{ I int32 }{I: 0},
+			struct{ I int32 }{I: 1},
 
-		struct{ I32 int32 }{I32: 0},
-		struct{ I32 int32 }{I32: -1234567890},
+			struct{ I32 int32 }{I32: 0},
+			struct{ I32 int32 }{I32: -1234567890},
 
-		struct{ I64 int64 }{I64: 0},
-		struct{ I64 int64 }{I64: -1234567890},
+			struct{ I64 int64 }{I64: 0},
+			struct{ I64 int64 }{I64: -1234567890},
 
-		struct{ U int32 }{U: 0},
-		struct{ U int32 }{U: 1},
+			struct{ U int32 }{U: 0},
+			struct{ U int32 }{U: 1},
 
-		struct{ U32 uint32 }{U32: 0},
-		struct{ U32 uint32 }{U32: 1234567890},
+			struct{ U32 uint32 }{U32: 0},
+			struct{ U32 uint32 }{U32: 1234567890},
 
-		struct{ U64 uint64 }{U64: 0},
-		struct{ U64 uint64 }{U64: 1234567890},
+			struct{ U64 uint64 }{U64: 0},
+			struct{ U64 uint64 }{U64: 1234567890},
 
-		struct{ F32 float32 }{F32: 0},
-		struct{ F32 float32 }{F32: 0.1234},
+			struct{ F32 float32 }{F32: 0},
+			struct{ F32 float32 }{F32: 0.1234},
 
-		struct{ F64 float64 }{F64: 0},
-		struct{ F64 float64 }{F64: 0.1234},
+			struct{ F64 float64 }{F64: 0},
+			struct{ F64 float64 }{F64: 0.1234},
 
-		struct{ S string }{S: ""},
-		struct{ S string }{S: "E"},
+			struct{ S string }{S: ""},
+			struct{ S string }{S: "E"},
 
-		struct{ B []byte }{B: nil},
-		struct{ B []byte }{B: []byte{}},
-		struct{ B []byte }{B: []byte{1, 2, 3}},
-
+			struct{ B []byte }{B: nil},
+			struct{ B []byte }{B: []byte{}},
+			struct{ B []byte }{B: []byte{1, 2, 3}},
+		*/
 		&message{
 			A: 1,
 			B: 2,
 			C: 3,
-			S: submessage{
+			S: &submessage{
 				X: "hello",
 				Y: "world",
 			},
 		},
 
 		struct {
-			Min int64 `protobuf:"zigzag64,1,opt,name=min,proto3"`
-			Max int64 `protobuf:"zigzag64,2,opt,name=min,proto3"`
+			Min int64 `protobuf:"zigzag64,1,opt"`
+			Max int64 `protobuf:"zigzag64,2,opt"`
 		}{Min: math.MinInt64, Max: math.MaxInt64},
 
 		// pointers
-		struct{ M *message }{M: nil},
 		struct {
-			M1 *message
-			M2 *message
-			M3 *message
+			M *message `protobuf:"bytes,1,opt"`
+		}{M: nil},
+		struct {
+			M1 *message `protobuf:"bytes,1,opt"`
+			M2 *message `protobuf:"bytes,2,opt"`
 		}{
 			M1: &message{A: 10, B: 100, C: 1000},
-			M2: &message{S: submessage{X: "42"}},
+			M2: &message{S: &submessage{X: "42"}},
 		},
 
 		// byte arrays
@@ -209,14 +189,30 @@ func TestMarshalUnmarshal(t *testing.T) {
 		&[...]byte{3, 2, 1},
 
 		// slices (repeated)
-		struct{ S []int32 }{S: nil},
-		struct{ S []int32 }{S: []int32{0}},
-		struct{ S []int32 }{S: []int32{0, 0, 0}},
-		struct{ S []int32 }{S: []int32{1, 2, 3}},
-		struct{ S []string }{S: nil},
-		struct{ S []string }{S: []string{""}},
-		struct{ S []string }{S: []string{"A", "B", "C"}},
-		struct{ K []key }{
+		struct {
+			S []int32 `protobuf:"varint,1,rep"`
+		}{S: nil},
+		struct {
+			S []int32 `protobuf:"varint,1,rep"`
+		}{S: []int32{0}},
+		struct {
+			S []int32 `protobuf:"varint,1,rep"`
+		}{S: []int32{0, 0, 0}},
+		struct {
+			S []int32 `protobuf:"varint,1,rep"`
+		}{S: []int32{1, 2, 3}},
+		struct {
+			S []string `protobuf:"bytes,1,rep"`
+		}{S: nil},
+		struct {
+			S []string `protobuf:"bytes,1,rep"`
+		}{S: []string{""}},
+		struct {
+			S []string `protobuf:"bytes,1,rep"`
+		}{S: []string{"A", "B", "C"}},
+		struct {
+			K []key `protobuf:"bytes,1,opt"`
+		}{
 			K: []key{
 				{Hi: 0, Lo: 0},
 				{Hi: 0, Lo: 1},
@@ -225,75 +221,6 @@ func TestMarshalUnmarshal(t *testing.T) {
 				{Hi: 0, Lo: 4},
 			},
 		},
-
-		// maps (repeated)
-		struct{ M map[int32]string }{},
-		struct{ M map[int32]string }{
-			M: map[int32]string{0: ""},
-		},
-		struct{ M map[int32]string }{
-			M: map[int32]string{0: "A", 1: "B", 2: "C"},
-		},
-		&struct{ M map[int32]string }{
-			M: map[int32]string{0: "A", 1: "B", 2: "C"},
-		},
-		struct {
-			M1 map[int32]int32
-			M2 map[string]string
-			M3 map[string]message
-			M4 map[string]*message
-			M5 map[key]uint32
-		}{
-			M1: map[int32]int32{0: 1},
-			M2: map[string]string{"": "A"},
-			M3: map[string]message{
-				"m0": {},
-				"m1": {A: 42},
-				"m3": {S: submessage{X: "X", Y: "Y"}},
-			},
-			M4: map[string]*message{
-				"m0": {},
-				"m1": {A: 42},
-				"m3": {S: submessage{X: "X", Y: "Y"}},
-			},
-			M5: map[key]uint32{
-				key{Hi: 0, Lo: 0}: 0,
-				key{Hi: 1, Lo: 0}: 1,
-				key{Hi: 0, Lo: 1}: 2,
-				key{Hi: math.MaxUint64, Lo: math.MaxUint64}: 3,
-			},
-		},
-
-		// more complex inlined types use cases
-		struct{ I *int32 }{},
-		struct{ I *int32 }{I: new(int32)},
-		struct{ I *int32 }{I: &intVal},
-		struct{ M *message }{},
-		struct{ M *message }{M: new(message)},
-		struct{ M map[int32]int32 }{},
-		struct{ M map[int32]int32 }{M: map[int32]int32{}},
-		struct{ S structWithMap }{
-			S: structWithMap{
-				M: map[int32]string{0: "A", 1: "B", 2: "C"},
-			},
-		},
-		&struct{ S structWithMap }{
-			S: structWithMap{
-				M: map[int32]string{0: "A", 1: "B", 2: "C"},
-			},
-		},
-
-		// custom messages
-		custom{},
-		custom{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-		messageWithCustomField{
-			Custom: custom{1: 42},
-		},
-		struct {
-			A int32
-			B string
-			C custom
-		}{A: 42, B: "Hello World!", C: custom{1: 42}},
 	}
 
 	for _, v := range values {
@@ -323,11 +250,11 @@ func TestMarshalUnmarshal(t *testing.T) {
 
 func TestIssue106(t *testing.T) {
 	m1 := struct {
-		I uint32
+		I uint32 `protobuf:"varint,1,opt"`
 	}{I: ^uint32(0)}
 
 	m2 := struct {
-		I int32
+		I int32 `protobuf:"varint,1,opt"`
 	}{}
 
 	b, err := Marshal(&m1)

@@ -34,7 +34,7 @@ func BenchmarkEncodeMessage(b *testing.B) {
 		A: 1,
 		B: 100,
 		C: 10000,
-		S: submessage{
+		S: &submessage{
 			X: "",
 			Y: "Hello World!",
 		},
@@ -52,7 +52,7 @@ func BenchmarkEncodeMessage(b *testing.B) {
 
 func BenchmarkEncodeMap(b *testing.B) {
 	msg := struct {
-		M map[string]string
+		M map[string]string `protobuf:"bytes,1,opt"`
 	}{
 		M: map[string]string{
 			"hello": "world",
@@ -71,9 +71,9 @@ func BenchmarkEncodeMap(b *testing.B) {
 
 func BenchmarkEncodeSlice(b *testing.B) {
 	msg := struct {
-		S []int
+		S []int32 `protobuf:"varint,1,rep"`
 	}{
-		S: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		S: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 	}
 
 	size := Size(msg)

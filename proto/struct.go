@@ -65,35 +65,40 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 			continue // unexported
 		}
 
+		tag, ok := f.Tag.Lookup("protobuf")
+		if !ok {
+			continue // no tag
+		}
+
 		field := structField{
 			offset: f.Offset,
 		}
-		if tag, ok := f.Tag.Lookup("protobuf"); ok {
-			t, err := parseStructTag(tag)
-			if err == nil {
-				field.wiretag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
-				if t.repeated {
-					field.flags |= repeated
-				}
-				if t.zigzag {
-					field.flags |= zigzag
-				}
-				switch t.wireType {
-				case fixed32:
-					switch baseKindOf(f.Type) {
-					case reflect.Uint32:
-						field.codec = fixPtrCodec(f.Type, &fixed32Codec)
-					case reflect.Float32:
-						field.codec = fixPtrCodec(f.Type, &float32Codec)
-					}
-				case fixed64:
-					switch baseKindOf(f.Type) {
-					case reflect.Uint64:
-						field.codec = fixPtrCodec(f.Type, &fixed64Codec)
-					case reflect.Float64:
-						field.codec = fixPtrCodec(f.Type, &float64Codec)
-					}
-				}
+
+		t, err := parseStructTag(tag)
+		if err != nil {
+			panic(err)
+		}
+		field.wiretag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
+		if t.repeated {
+			field.flags |= repeated
+		}
+		if t.zigzag {
+			field.flags |= zigzag
+		}
+		switch t.wireType {
+		case fixed32:
+			switch baseKindOf(f.Type) {
+			case reflect.Uint32:
+				field.codec = fixPtrCodec(f.Type, &fixed32Codec)
+			case reflect.Float32:
+				field.codec = fixPtrCodec(f.Type, &float32Codec)
+			}
+		case fixed64:
+			switch baseKindOf(f.Type) {
+			case reflect.Uint64:
+				field.codec = fixPtrCodec(f.Type, &fixed64Codec)
+			case reflect.Float64:
+				field.codec = fixPtrCodec(f.Type, &float64Codec)
 			}
 		}
 
@@ -114,9 +119,6 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 					}
 					field.flags |= repeated
 					field.codec = codecOf(elem, seen)
-					if field.wiretag == 0 {
-						field.wiretag = uint64(number)<<3 | uint64(field.codec.wire)
-					}
 					field.codec = sliceCodecOf(f.Type, field, seen)
 				}
 
@@ -124,9 +126,6 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 				key, val := f.Type.Key(), f.Type.Elem()
 				k := codecOf(key, seen)
 				v := codecOf(val, seen)
-				if field.wiretag == 0 {
-					field.wiretag = uint64(number)<<3 | uint64(varlen)
-				}
 				m := &mapField{
 					wiretag:  field.wiretag,
 					keyCodec: k,
@@ -146,9 +145,6 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 			}
 		}
 
-		if field.wiretag == 0 {
-			field.wiretag = uint64(number)<<3 | uint64(field.codec.wire)
-		}
 		field.tagsize = uint8(sizeOfVarint(field.wiretag))
 		fields = append(fields, field)
 		number++

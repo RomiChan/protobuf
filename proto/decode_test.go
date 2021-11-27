@@ -11,7 +11,7 @@ func TestUnarshalFromShortBuffer(t *testing.T) {
 		A: 1,
 		B: 2,
 		C: 3,
-		S: submessage{
+		S: &submessage{
 			X: "hello",
 			Y: "world",
 		},
@@ -50,7 +50,7 @@ func BenchmarkDecodeMessage(b *testing.B) {
 		A: 1,
 		B: 100,
 		C: 10000,
-		S: submessage{
+		S: &submessage{
 			X: "",
 			Y: "Hello World!",
 		},
@@ -69,11 +69,11 @@ func BenchmarkDecodeMessage(b *testing.B) {
 
 func BenchmarkDecodeMap(b *testing.B) {
 	type message struct {
-		M map[int]int
+		M map[int32]int32 `protobuf:"bytes,1,opt"`
 	}
 
 	data, _ := Marshal(message{
-		M: map[int]int{
+		M: map[int32]int32{
 			0: 0,
 			1: 1,
 			2: 2,
@@ -95,11 +95,11 @@ func BenchmarkDecodeMap(b *testing.B) {
 
 func BenchmarkDecodeSlice(b *testing.B) {
 	type message struct {
-		S []int
+		S []int32 `protobuf:"varint,1,opt"`
 	}
 
 	data, _ := Marshal(message{
-		S: []int{
+		S: []int32{
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 		},
 	})
@@ -122,7 +122,7 @@ func TestIssue110(t *testing.T) {
 	}
 
 	var a uint32 = 0x41c06db4
-	data, _ := Marshal(message{
+	data, _ := Marshal(&message{
 		A: &a,
 	})
 
