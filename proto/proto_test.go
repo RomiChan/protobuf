@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strconv"
 	"testing"
+
+	"github.com/RomiChan/protobuf/proto/internal/testproto"
 )
 
 func TestEncodeDecodeVarint(t *testing.T) {
@@ -70,90 +73,6 @@ type submessage struct {
 
 func TestMarshalUnmarshal(t *testing.T) {
 	values := []interface{}{
-		// bool
-		true,
-		false,
-
-		// sfixed32
-		int32(0),
-		int32(math.MinInt32),
-		int32(math.MaxInt32),
-
-		// sfixed64
-		int64(0),
-		int64(math.MinInt64),
-		int64(math.MaxInt64),
-
-		// varint
-		uint32(0),
-		uint32(1),
-		uint32(1234567890),
-
-		// fixed32
-		uint32(0),
-		uint32(1234567890),
-
-		// fixed64
-		uint64(0),
-		uint64(1234567890),
-
-		// float
-		float32(0),
-		float32(math.Copysign(0, -1)),
-		float32(0.1234),
-
-		// double
-		float64(0),
-		float64(math.Copysign(0, -1)),
-		float64(0.1234),
-
-		// string
-		"",
-		"A",
-		"Hello World!",
-
-		// bytes
-		([]byte)(nil),
-		[]byte(""),
-		[]byte("A"),
-		[]byte("Hello World!"),
-
-		// messages
-		/*
-			struct{ B bool }{B: false},
-			struct{ B bool }{B: true},
-
-			struct{ I int32 }{I: 0},
-			struct{ I int32 }{I: 1},
-
-			struct{ I32 int32 }{I32: 0},
-			struct{ I32 int32 }{I32: -1234567890},
-
-			struct{ I64 int64 }{I64: 0},
-			struct{ I64 int64 }{I64: -1234567890},
-
-			struct{ U int32 }{U: 0},
-			struct{ U int32 }{U: 1},
-
-			struct{ U32 uint32 }{U32: 0},
-			struct{ U32 uint32 }{U32: 1234567890},
-
-			struct{ U64 uint64 }{U64: 0},
-			struct{ U64 uint64 }{U64: 1234567890},
-
-			struct{ F32 float32 }{F32: 0},
-			struct{ F32 float32 }{F32: 0.1234},
-
-			struct{ F64 float64 }{F64: 0},
-			struct{ F64 float64 }{F64: 0.1234},
-
-			struct{ S string }{S: ""},
-			struct{ S string }{S: "E"},
-
-			struct{ B []byte }{B: nil},
-			struct{ B []byte }{B: []byte{}},
-			struct{ B []byte }{B: []byte{1, 2, 3}},
-		*/
 		&message{
 			A: 1,
 			B: 2,
@@ -243,6 +162,60 @@ func TestMarshalUnmarshal(t *testing.T) {
 			x := p.Elem().Interface()
 			if !reflect.DeepEqual(v, x) {
 				t.Errorf("values mismatch:\nexpected: %#v\nfound:    %#v", v, x)
+			}
+		})
+	}
+}
+
+func TestProto2(t *testing.T) {
+	values := []*testproto.Proto2{
+		{}, // nil
+		{ // none-nil but default value
+			BoolValue:  Bool(false),
+			Int32Val:   Int32(0),
+			Uint32Val:  Uint32(0),
+			Int64Val:   Int64(0),
+			Uint64Val:  Uint64(0),
+			FloatVal:   Float32(0),
+			DoubleVal:  Float64(0),
+			StringVal:  String(""),
+			BytesVal:   []byte{},
+			Fixed32Val: Uint32(0),
+			Fixed64Val: Uint64(0),
+		},
+		{
+			BoolValue:  Bool(true),
+			Int32Val:   Int32(1),
+			Uint32Val:  Uint32(2),
+			Int64Val:   Int64(3),
+			Uint64Val:  Uint64(4),
+			FloatVal:   Float32(114.514),
+			DoubleVal:  Float64(1919.810),
+			StringVal:  String("Hello World"),
+			BytesVal:   make([]byte, 16),
+			Fixed32Val: Uint32(5),
+			Fixed64Val: Uint64(6),
+		},
+	}
+
+	for i, v := range values {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			n := Size(v)
+			b, err := Marshal(v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if n != len(b) {
+				t.Fatalf("value size and buffer length mismatch (%d != %d) %v to %s", n, len(b), v, hex.EncodeToString(b))
+			}
+
+			p := new(testproto.Proto2)
+			if err := Unmarshal(b, &p); err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(v, p) {
+				t.Errorf("values mismatch:\nexpected: %#v\nfound:    %#v", v, p)
 			}
 		})
 	}

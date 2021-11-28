@@ -12,18 +12,18 @@ var bytesCodec = codec{
 	decode: decodeBytes,
 }
 
-func sizeOfBytes(p unsafe.Pointer, flags flags) int {
+func sizeOfBytes(p unsafe.Pointer, _ flags) int {
 	if p != nil {
-		if v := *(*[]byte)(p); v != nil || flags.has(wantzero) {
+		if v := *(*[]byte)(p); v != nil {
 			return sizeOfVarlen(len(v))
 		}
 	}
 	return 0
 }
 
-func encodeBytes(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeBytes(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 	if p != nil {
-		if v := *(*[]byte)(p); v != nil || flags.has(wantzero) {
+		if v := *(*[]byte)(p); v != nil {
 			b = appendVarint(b, uint64(len(v)))
 			b = append(b, v...)
 		}
