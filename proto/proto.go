@@ -209,12 +209,6 @@ func codecOf(t reflect.Type, seen map[reflect.Type]*codec, zigzag bool) *codec {
 		return &float64Codec
 	case reflect.String:
 		return &stringCodec
-	case reflect.Array:
-		elem := t.Elem()
-		switch elem.Kind() {
-		case reflect.Uint8:
-			return byteArrayCodecOf(t, seen)
-		}
 	case reflect.Slice:
 		elem := t.Elem()
 		switch elem.Kind() {
