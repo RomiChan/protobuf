@@ -41,9 +41,7 @@ func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 			return 0
 		}
 
-		if !flags.has(inline) {
-			p = *(*unsafe.Pointer)(p)
-		}
+		p = *(*unsafe.Pointer)(p)
 
 		n := 0
 		m := MapIter{}
@@ -86,10 +84,7 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 		if p == nil {
 			return b, nil
 		}
-
-		if !flags.has(inline) {
-			p = *(*unsafe.Pointer)(p)
-		}
+		p = *(*unsafe.Pointer)(p)
 
 		origLen := len(b)
 		var err error
@@ -162,7 +157,7 @@ func mapDecodeFuncOf(t reflect.Type, _ *mapField, seen map[reflect.Type]*codec) 
 		{Name: "Elem", Type: t.Elem()},
 	})
 
-	structCodec := codecOf(structType, seen)
+	structCodec := codecOf(structType, seen, false)
 	structPool := new(sync.Pool)
 	structZero := pointer(reflect.Zero(structType).Interface())
 

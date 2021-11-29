@@ -9,16 +9,24 @@ import (
 
 func Size(v interface{}) int {
 	t, p := inspect(v)
+	if t.Kind() != reflect.Ptr {
+		panic(fmt.Errorf("proto.Marshal(%T): not a pointer", v))
+	}
+	t = t.Elem()
 	c := cachedCodecOf(t)
-	return c.size(p, inline)
+	return c.size(p, noflags)
 }
 
 func Marshal(v interface{}) ([]byte, error) {
 	t, p := inspect(v)
+	if t.Kind() != reflect.Ptr {
+		return nil, fmt.Errorf("proto.Marshal(%T): not a pointer", v)
+	}
+	t = t.Elem()
 	c := cachedCodecOf(t)
-	b := make([]byte, 0, c.size(p, inline))
+	b := make([]byte, 0, c.size(p, noflags))
 	var err error
-	b, err = c.encode(b, p, inline)
+	b, err = c.encode(b, p, noflags)
 	if err != nil {
 		return nil, fmt.Errorf("proto.Marshal(%T): %w", v, err)
 	}
@@ -49,7 +57,6 @@ type flags uintptr
 
 const (
 	noflags  flags = 0
-	inline   flags = 1 << 0
 	wantzero flags = 1 << 1
 	// Shared with structField.flags in struct.go:
 	// zigzag flags = 1 << 2
@@ -94,15 +101,6 @@ func inspect(v interface{}) (reflect.Type, unsafe.Pointer) {
 
 func pointer(v interface{}) unsafe.Pointer {
 	return (*iface)(unsafe.Pointer(&v)).ptr
-}
-
-func inlined(t reflect.Type) bool {
-	switch t.Kind() {
-	case reflect.Ptr, reflect.Map:
-		return true
-	default:
-		return false
-	}
 }
 
 type fieldNumber uint
@@ -164,8 +162,8 @@ func cachedCodecOf(t reflect.Type) *codec {
 	}
 
 	seen := make(map[reflect.Type]*codec)
-	c1 := codecOf(t, seen)
-	c2 := codecOf(p, seen)
+	c1 := codecOf(t, seen, false)
+	c2 := codecOf(p, seen, false)
 
 	newCache := make(map[unsafe.Pointer]*codec, len(oldCache)+2)
 	for p, c := range oldCache {
@@ -183,7 +181,7 @@ func cachedCodecOf(t reflect.Type) *codec {
 	}
 }
 
-func codecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
+func codecOf(t reflect.Type, seen map[reflect.Type]*codec, zigzag bool) *codec {
 	if c := seen[t]; c != nil {
 		return c
 	}
@@ -192,8 +190,14 @@ func codecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 	case reflect.Bool:
 		return &boolCodec
 	case reflect.Int32:
+		if zigzag {
+			return &zigzag32Codec
+		}
 		return &int32Codec
 	case reflect.Int64:
+		if zigzag {
+			return &zigzag64Codec
+		}
 		return &int64Codec
 	case reflect.Uint32:
 		return &uint32Codec
@@ -220,7 +224,7 @@ func codecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 	case reflect.Struct:
 		return structCodecOf(t, seen)
 	case reflect.Ptr:
-		return pointerCodecOf(t, seen)
+		return pointerCodecOf(t, seen, zigzag)
 	}
 
 	panic("unsupported type: " + t.String())

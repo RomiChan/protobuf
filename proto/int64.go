@@ -11,7 +11,7 @@ var int64Codec = codec{
 func sizeOfInt64(p unsafe.Pointer, flags flags) int {
 	if p != nil {
 		if v := *(*int64)(p); v != 0 || flags.has(wantzero) {
-			return sizeOfVarint(flags.uint64(v))
+			return sizeOfVarint(uint64(v))
 		}
 	}
 	return 0
@@ -20,14 +20,14 @@ func sizeOfInt64(p unsafe.Pointer, flags flags) int {
 func encodeInt64(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 	if p != nil {
 		if v := *(*int64)(p); v != 0 || flags.has(wantzero) {
-			b = appendVarint(b, flags.uint64(v))
+			b = appendVarint(b, uint64(v))
 		}
 	}
 	return b, nil
 }
 
-func decodeInt64(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeInt64(b []byte, p unsafe.Pointer, _ flags) (int, error) {
 	v, n, err := decodeVarint(b)
-	*(*int64)(p) = flags.int64(v)
+	*(*int64)(p) = int64(v)
 	return n, err
 }

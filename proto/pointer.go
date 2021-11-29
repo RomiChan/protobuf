@@ -5,10 +5,10 @@ import (
 	"unsafe"
 )
 
-func pointerCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
+func pointerCodecOf(t reflect.Type, seen map[reflect.Type]*codec, zigzag bool) *codec {
 	p := new(codec)
 	seen[t] = p
-	c := codecOf(t.Elem(), seen)
+	c := codecOf(t.Elem(), seen, zigzag)
 	p.size = pointerSizeFuncOf(t, c)
 	p.encode = pointerEncodeFuncOf(t, c)
 	p.decode = pointerDecodeFuncOf(t, c)
@@ -18,10 +18,8 @@ func pointerCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 func pointerSizeFuncOf(_ reflect.Type, c *codec) sizeFunc {
 	return func(p unsafe.Pointer, flags flags) int {
 		if p != nil {
-			if !flags.has(inline) {
-				p = *(*unsafe.Pointer)(p)
-			}
-			return c.size(p, flags.without(inline).with(wantzero))
+			p = *(*unsafe.Pointer)(p)
+			return c.size(p, flags.with(wantzero))
 		}
 		return 0
 	}
@@ -30,10 +28,8 @@ func pointerSizeFuncOf(_ reflect.Type, c *codec) sizeFunc {
 func pointerEncodeFuncOf(_ reflect.Type, c *codec) encodeFunc {
 	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 		if p != nil {
-			if !flags.has(inline) {
-				p = *(*unsafe.Pointer)(p)
-			}
-			return c.encode(b, p, flags.without(inline).with(wantzero))
+			p = *(*unsafe.Pointer)(p)
+			return c.encode(b, p, flags.with(wantzero))
 		}
 		return b, nil
 	}

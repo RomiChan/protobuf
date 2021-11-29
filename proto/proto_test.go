@@ -85,16 +85,16 @@ func TestMarshalUnmarshal(t *testing.T) {
 			},
 		},
 
-		struct {
+		&struct {
 			Min int64 `protobuf:"zigzag64,1,opt"`
 			Max int64 `protobuf:"zigzag64,2,opt"`
 		}{Min: math.MinInt64, Max: math.MaxInt64},
 
 		// pointers
-		struct {
+		&struct {
 			M *message `protobuf:"bytes,1,opt"`
 		}{M: nil},
-		struct {
+		&struct {
 			M1 *message `protobuf:"bytes,1,opt"`
 			M2 *message `protobuf:"bytes,2,opt"`
 		}{
@@ -102,36 +102,29 @@ func TestMarshalUnmarshal(t *testing.T) {
 			M2: &message{S: &submessage{X: "42"}},
 		},
 
-		// byte arrays
-		[0]byte{},
-		[8]byte{},
-		[16]byte{0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF},
-		&[...]byte{},
-		&[...]byte{3, 2, 1},
-
 		// slices (repeated)
-		struct {
+		&struct {
 			S []int32 `protobuf:"varint,1,rep"`
 		}{S: nil},
-		struct {
+		&struct {
 			S []int32 `protobuf:"varint,1,rep"`
 		}{S: []int32{0}},
-		struct {
+		&struct {
 			S []int32 `protobuf:"varint,1,rep"`
 		}{S: []int32{0, 0, 0}},
-		struct {
+		&struct {
 			S []int32 `protobuf:"varint,1,rep"`
 		}{S: []int32{1, 2, 3}},
-		struct {
+		&struct {
 			S []string `protobuf:"bytes,1,rep"`
 		}{S: nil},
-		struct {
+		&struct {
 			S []string `protobuf:"bytes,1,rep"`
 		}{S: []string{""}},
-		struct {
+		&struct {
 			S []string `protobuf:"bytes,1,rep"`
 		}{S: []string{"A", "B", "C"}},
-		struct {
+		&struct {
 			K []key `protobuf:"bytes,1,opt"`
 		}{
 			K: []key{
@@ -156,12 +149,12 @@ func TestMarshalUnmarshal(t *testing.T) {
 				t.Fatalf("value size and buffer length mismatch (%d != %d) %v to %s", n, len(b), v, hex.EncodeToString(b))
 			}
 
-			p := reflect.New(reflect.TypeOf(v))
+			p := reflect.New(reflect.TypeOf(v).Elem())
 			if err := Unmarshal(b, p.Interface()); err != nil {
 				t.Fatal(err)
 			}
 
-			x := p.Elem().Interface()
+			x := p.Interface()
 			if !reflect.DeepEqual(v, x) {
 				t.Errorf("values mismatch:\nexpected: %#v\nfound:    %#v", v, x)
 			}
