@@ -193,12 +193,10 @@ func structSizeFuncOf(t reflect.Type, fields []*structField) sizeFunc {
 		}
 
 		if !inlined {
-			flags = flags.without(inline | toplevel)
-		} else {
-			flags = flags.without(toplevel)
+			flags = flags.without(inline)
 		}
-		n := 0
 
+		n := 0
 		for _, f := range fields {
 			if f.repeated() {
 				size := f.codec.size(f.pointer(p), f.makeFlags(flags))
@@ -229,9 +227,7 @@ func structEncodeFuncOf(t reflect.Type, fields []*structField) encodeFunc {
 		}
 
 		if !inlined {
-			flags = flags.without(inline | toplevel)
-		} else {
-			flags = flags.without(toplevel)
+			flags = flags.without(inline)
 		}
 
 		var err error
@@ -273,9 +269,7 @@ func structDecodeFuncOf(_ reflect.Type, fields []*structField) decodeFunc {
 	}
 
 	return func(b []byte, p unsafe.Pointer, flags flags) (int, error) {
-		flags = flags.without(toplevel)
 		offset := 0
-
 		for offset < len(b) {
 			fieldNumber, wireType, n, err := decodeTag(b[offset:])
 			offset += n

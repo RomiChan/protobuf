@@ -10,15 +10,15 @@ import (
 func Size(v interface{}) int {
 	t, p := inspect(v)
 	c := cachedCodecOf(t)
-	return c.size(p, inline|toplevel)
+	return c.size(p, inline)
 }
 
 func Marshal(v interface{}) ([]byte, error) {
 	t, p := inspect(v)
 	c := cachedCodecOf(t)
-	b := make([]byte, 0, c.size(p, inline|toplevel))
+	b := make([]byte, 0, c.size(p, inline))
 	var err error
-	b, err = c.encode(b, p, inline|toplevel)
+	b, err = c.encode(b, p, inline)
 	if err != nil {
 		return nil, fmt.Errorf("proto.Marshal(%T): %w", v, err)
 	}
@@ -35,7 +35,7 @@ func Unmarshal(b []byte, v interface{}) error {
 	t = t.Elem() // Unmarshal must be passed a pointer
 	c := cachedCodecOf(t)
 
-	n, err := c.decode(b, p, toplevel)
+	n, err := c.decode(b, p, noflags)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,6 @@ const (
 	wantzero flags = 1 << 1
 	// Shared with structField.flags in struct.go:
 	// zigzag flags = 1 << 2
-	toplevel flags = 1 << 3
 )
 
 func (f flags) has(x flags) bool {
@@ -99,12 +98,8 @@ func pointer(v interface{}) unsafe.Pointer {
 
 func inlined(t reflect.Type) bool {
 	switch t.Kind() {
-	case reflect.Ptr:
+	case reflect.Ptr, reflect.Map:
 		return true
-	case reflect.Map:
-		return true
-	case reflect.Struct:
-		return t.NumField() == 1 && inlined(t.Field(0).Type)
 	default:
 		return false
 	}

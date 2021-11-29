@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/RomiChan/protobuf/proto/internal/testproto"
 )
 
@@ -182,6 +184,8 @@ func TestProto2(t *testing.T) {
 			BytesVal:   []byte{},
 			Fixed32Val: Uint32(0),
 			Fixed64Val: Uint64(0),
+			Sint32Val:  Int32(0),
+			Sint64Val:  Int64(0),
 		},
 		{
 			BoolValue:  Bool(true),
@@ -195,6 +199,25 @@ func TestProto2(t *testing.T) {
 			BytesVal:   make([]byte, 16),
 			Fixed32Val: Uint32(5),
 			Fixed64Val: Uint64(6),
+			Sint32Val:  Int32(7),
+			Sint64Val:  Int64(8),
+		},
+		{ // FIXME(wdvxdr)
+			// Nested: &testproto.Proto2_NestedMessage{},
+		},
+		{
+			Nested: &testproto.Proto2_NestedMessage{
+				Int32Val:  Int32(0),
+				Int64Val:  Int64(0),
+				StringVal: String(""),
+			},
+		},
+		{
+			Nested: &testproto.Proto2_NestedMessage{
+				Int32Val:  Int32(114514),
+				Int64Val:  Int64(1919810),
+				StringVal: String("Hello World!"),
+			},
 		},
 	}
 
@@ -202,21 +225,12 @@ func TestProto2(t *testing.T) {
 		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
 			n := Size(v)
 			b, err := Marshal(v)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if n != len(b) {
-				t.Fatalf("value size and buffer length mismatch (%d != %d) %v to %s", n, len(b), v, hex.EncodeToString(b))
-			}
+			assert.NoError(t, err)
+			assert.Len(t, b, n)
 
 			p := new(testproto.Proto2)
-			if err := Unmarshal(b, &p); err != nil {
-				t.Fatal(err)
-			}
-
-			if !reflect.DeepEqual(v, p) {
-				t.Errorf("values mismatch:\nexpected: %#v\nfound:    %#v", v, p)
-			}
+			assert.NoError(t, Unmarshal(b, &p))
+			assert.Equal(t, v, p)
 		})
 	}
 }
@@ -231,17 +245,9 @@ func TestIssue106(t *testing.T) {
 	}{}
 
 	b, err := Marshal(&m1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Unmarshal(b, &m2); err != nil {
-		t.Fatal(err)
-	}
-
-	if m2.I != -1 {
-		t.Error("unexpected value:", m2.I)
-	}
+	assert.NoError(t, err)
+	assert.NoError(t, Unmarshal(b, &m2))
+	assert.Equal(t, m2.I, int32(-1))
 }
 
 func TestBoolPointer(t *testing.T) {
@@ -250,17 +256,11 @@ func TestBoolPointer(t *testing.T) {
 	}
 	var m message
 	data, err := Marshal(&m)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
+
 	var b message
-	err = Unmarshal(data, &b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(m, b) {
-		t.Fatalf("mismatch m!=b")
-	}
+	assert.NoError(t, Unmarshal(data, &b))
+	assert.Equal(t, m, b)
 }
 
 func TestPrivateField(t *testing.T) {

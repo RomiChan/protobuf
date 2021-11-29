@@ -4,17 +4,20 @@
 package testproto
 
 type Proto2 struct {
-	BoolValue  *bool    `protobuf:"varint,1,opt"`
-	Int32Val   *int32   `protobuf:"varint,2,opt"`
-	Uint32Val  *uint32  `protobuf:"varint,3,opt"`
-	Int64Val   *int64   `protobuf:"varint,4,opt"`
-	Uint64Val  *uint64  `protobuf:"varint,5,opt"`
-	FloatVal   *float32 `protobuf:"fixed32,6,opt"`
-	DoubleVal  *float64 `protobuf:"fixed64,7,opt"`
-	StringVal  *string  `protobuf:"bytes,8,opt"`
-	BytesVal   []byte   `protobuf:"bytes,9,opt"`
-	Fixed32Val *uint32  `protobuf:"fixed32,10,opt"`
-	Fixed64Val *uint64  `protobuf:"fixed64,11,opt"`
+	BoolValue  *bool                 `protobuf:"varint,1,opt"`
+	Int32Val   *int32                `protobuf:"varint,2,opt"`
+	Uint32Val  *uint32               `protobuf:"varint,3,opt"`
+	Int64Val   *int64                `protobuf:"varint,4,opt"`
+	Uint64Val  *uint64               `protobuf:"varint,5,opt"`
+	FloatVal   *float32              `protobuf:"fixed32,6,opt"`
+	DoubleVal  *float64              `protobuf:"fixed64,7,opt"`
+	StringVal  *string               `protobuf:"bytes,8,opt"`
+	BytesVal   []byte                `protobuf:"bytes,9,opt"`
+	Fixed32Val *uint32               `protobuf:"fixed32,10,opt"`
+	Fixed64Val *uint64               `protobuf:"fixed64,11,opt"`
+	Sint32Val  *int32                `protobuf:"zigzag32,12,opt"`
+	Sint64Val  *int64                `protobuf:"zigzag64,13,opt"`
+	Nested     *Proto2_NestedMessage `protobuf:"bytes,14,opt"`
 }
 
 func (x *Proto2) GetBoolValue() bool {
@@ -92,4 +95,52 @@ func (x *Proto2) GetFixed64Val() uint64 {
 		return *x.Fixed64Val
 	}
 	return 0
+}
+
+func (x *Proto2) GetSint32Val() int32 {
+	if x != nil && x.Sint32Val != nil {
+		return *x.Sint32Val
+	}
+	return 0
+}
+
+func (x *Proto2) GetSint64Val() int64 {
+	if x != nil && x.Sint64Val != nil {
+		return *x.Sint64Val
+	}
+	return 0
+}
+
+func (x *Proto2) GetNested() *Proto2_NestedMessage {
+	if x != nil {
+		return x.Nested
+	}
+	return nil
+}
+
+type Proto2_NestedMessage struct {
+	Int32Val  *int32  `protobuf:"varint,1,opt"`
+	Int64Val  *int64  `protobuf:"varint,2,opt"`
+	StringVal *string `protobuf:"bytes,3,opt"`
+}
+
+func (x *Proto2_NestedMessage) GetInt32Val() int32 {
+	if x != nil && x.Int32Val != nil {
+		return *x.Int32Val
+	}
+	return 0
+}
+
+func (x *Proto2_NestedMessage) GetInt64Val() int64 {
+	if x != nil && x.Int64Val != nil {
+		return *x.Int64Val
+	}
+	return 0
+}
+
+func (x *Proto2_NestedMessage) GetStringVal() string {
+	if x != nil && x.StringVal != nil {
+		return *x.StringVal
+	}
+	return ""
 }
