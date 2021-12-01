@@ -153,8 +153,7 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 }
 
 func formatWireTag(wire uint64) reflect.StructTag {
-	v := reflect.StructTag(fmt.Sprintf(`protobuf:"%s,%d,opt"`, wireType(wire&7), wire>>3))
-	return v
+	return reflect.StructTag(fmt.Sprintf(`protobuf:"%s,%d,opt"`, wireType(wire&7), wire>>3))
 }
 
 func mapDecodeFuncOf(t reflect.Type, m *mapField, seen map[reflect.Type]*codec) decodeFunc {
