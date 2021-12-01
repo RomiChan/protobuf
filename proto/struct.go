@@ -165,9 +165,21 @@ func structCodecOf(t reflect.Type, seen map[reflect.Type]*codec) *codec {
 	seen[t] = c
 
 	info := structInfoOf(t, seen)
-	c.size = structSizeFuncOf(t, info)
-	c.encode = structEncodeFuncOf(t, info)
-	c.decode = structDecodeFuncOf(t, info)
+	c.size = func(p unsafe.Pointer, f flags) int {
+		n := info.size(p, f)
+		if n > 0 {
+			n += sizeOfVarint(uint64(n))
+		}
+		return n
+	}
+	c.encode = func(b []byte, p unsafe.Pointer, f flags) ([]byte, error) {
+		if n := info.size(p, f); n > 0 {
+			b = appendVarint(b, uint64(n))
+			return info.encode(b, p, f)
+		}
+		return b, nil
+	}
+	c.decode = info.decode
 	return c
 }
 
@@ -193,171 +205,158 @@ func fixPtrCodec(t reflect.Type, c *codec) *codec {
 	return c
 }
 
-func structSizeFuncOf(_ reflect.Type, info *structInfo) sizeFunc {
-	return func(p unsafe.Pointer, flags flags) int {
-		if p == nil {
-			return 0
-		}
+func (info *structInfo) size(p unsafe.Pointer, flags flags) int {
+	if p == nil {
+		return 0
+	}
 
-		n := 0
-		for _, f := range info.fields {
-			if f.repeated() {
-				size := f.codec.size(f.pointer(p), flags)
-				if size > 0 {
-					n += size
-					flags = flags.without(wantzero)
-				}
-				continue
-			}
+	n := 0
+	for _, f := range info.fields {
+		if f.repeated() {
 			size := f.codec.size(f.pointer(p), flags)
 			if size > 0 {
-				n += int(f.tagsize) + size
-				if f.embedded() {
-					n += sizeOfVarint(uint64(size))
-				}
+				n += size
 				flags = flags.without(wantzero)
 			}
+			continue
 		}
-		return n
+		size := f.codec.size(f.pointer(p), flags)
+		if size > 0 {
+			n += int(f.tagsize) + size
+			flags = flags.without(wantzero)
+		}
 	}
+	return n
 }
 
-func structEncodeFuncOf(_ reflect.Type, info *structInfo) encodeFunc {
-	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
-		if p == nil {
-			return b, nil
-		}
-
-		var err error
-		for _, f := range info.fields {
-			if f.repeated() {
-				b, err = f.codec.encode(b, f.pointer(p), flags)
-				if err != nil {
-					return b, err
-				}
-				continue
-			}
-			elem := f.pointer(p)
-			size := f.codec.size(elem, flags)
-			if size > 0 {
-				b = appendVarint(b, f.wiretag)
-
-				if f.embedded() {
-					b = appendVarint(b, uint64(size))
-				}
-
-				b, err = f.codec.encode(b, elem, flags)
-				if err != nil {
-					return b, err
-				}
-
-				flags = flags.without(wantzero)
-			}
-		}
+func (info *structInfo) encode(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+	if p == nil {
 		return b, nil
 	}
+
+	var err error
+	for _, f := range info.fields {
+		if f.repeated() {
+			b, err = f.codec.encode(b, f.pointer(p), flags)
+			if err != nil {
+				return b, err
+			}
+			continue
+		}
+		elem := f.pointer(p)
+		size := f.codec.size(elem, flags)
+		if size > 0 {
+			b = appendVarint(b, f.wiretag)
+
+			b, err = f.codec.encode(b, elem, flags)
+			if err != nil {
+				return b, err
+			}
+
+			flags = flags.without(wantzero)
+		}
+	}
+	return b, nil
 }
 
-func structDecodeFuncOf(_ reflect.Type, info *structInfo) decodeFunc {
-	return func(b []byte, p unsafe.Pointer, flags flags) (int, error) {
-		offset := 0
-		for offset < len(b) {
-			fieldNumber, wireType, n, err := decodeTag(b[offset:])
-			offset += n
-			if err != nil {
-				return offset, err
-			}
+func (info *structInfo) decode(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+	offset := 0
+	for offset < len(b) {
+		fieldNumber, wireType, n, err := decodeTag(b[offset:])
+		offset += n
+		if err != nil {
+			return offset, err
+		}
 
-			f := info.fieldIndex[fieldNumber]
-			if f == nil {
-				skip := 0
-				size := uint64(0)
-				switch wireType {
-				case varint:
-					_, skip, err = decodeVarint(b[offset:])
-				case varlen:
-					size, skip, err = decodeVarint(b[offset:])
-					if err == nil {
-						if size > uint64(len(b)-skip) {
-							err = io.ErrUnexpectedEOF
-						} else {
-							skip += int(size)
-						}
-					}
-				case fixed32:
-					skip = 4
-				case fixed64:
-					skip = 8
-				default:
-					err = ErrWireTypeUnknown
-				}
-				if (offset + skip) <= len(b) {
-					offset += skip
-				} else {
-					offset, err = len(b), io.ErrUnexpectedEOF
-				}
-				if err != nil {
-					return offset, fieldError(fieldNumber, wireType, err)
-				}
-				continue
-			}
-
-			if wireType != f.wireType() {
-				return offset, fieldError(fieldNumber, wireType, fmt.Errorf("expected wire type %d", f.wireType()))
-			}
-
-			// `data` will only contain the section of the input buffer where
-			// the data for the next field is available. This is necessary to
-			// limit how many bytes will be consumed by embedded messages.
-			var data []byte
+		f := info.fieldIndex[fieldNumber]
+		if f == nil {
+			skip := 0
+			size := uint64(0)
 			switch wireType {
 			case varint:
-				_, n, err := decodeVarint(b[offset:])
-				if err != nil {
-					return offset, fieldError(fieldNumber, wireType, err)
-				}
-				data = b[offset : offset+n]
-
+				_, skip, err = decodeVarint(b[offset:])
 			case varlen:
-				l, n, err := decodeVarint(b[offset:])
-				if err != nil {
-					return offset + n, fieldError(fieldNumber, wireType, err)
+				size, skip, err = decodeVarint(b[offset:])
+				if err == nil {
+					if size > uint64(len(b)-skip) {
+						err = io.ErrUnexpectedEOF
+					} else {
+						skip += int(size)
+					}
 				}
-				if l > uint64(len(b)-(offset+n)) {
-					return len(b), fieldError(fieldNumber, wireType, io.ErrUnexpectedEOF)
-				}
-				if f.embedded() {
-					offset += n
-					data = b[offset : offset+int(l)]
-				} else {
-					data = b[offset : offset+n+int(l)]
-				}
-
 			case fixed32:
-				if (offset + 4) > len(b) {
-					return len(b), fieldError(fieldNumber, wireType, io.ErrUnexpectedEOF)
-				}
-				data = b[offset : offset+4]
-
+				skip = 4
 			case fixed64:
-				if (offset + 8) > len(b) {
-					return len(b), fieldError(fieldNumber, wireType, io.ErrUnexpectedEOF)
-				}
-				data = b[offset : offset+8]
-
+				skip = 8
 			default:
-				return offset, fieldError(fieldNumber, wireType, ErrWireTypeUnknown)
+				err = ErrWireTypeUnknown
 			}
-
-			n, err = f.codec.decode(data, f.pointer(p), flags)
-			offset += n
+			if (offset + skip) <= len(b) {
+				offset += skip
+			} else {
+				offset, err = len(b), io.ErrUnexpectedEOF
+			}
 			if err != nil {
 				return offset, fieldError(fieldNumber, wireType, err)
 			}
+			continue
 		}
 
-		return offset, nil
+		if wireType != f.wireType() {
+			return offset, fieldError(fieldNumber, wireType, fmt.Errorf("expected wire type %d", f.wireType()))
+		}
+
+		// `data` will only contain the section of the input buffer where
+		// the data for the next field is available. This is necessary to
+		// limit how many bytes will be consumed by embedded messages.
+		var data []byte
+		switch wireType {
+		case varint:
+			_, n, err := decodeVarint(b[offset:])
+			if err != nil {
+				return offset, fieldError(fieldNumber, wireType, err)
+			}
+			data = b[offset : offset+n]
+
+		case varlen:
+			l, n, err := decodeVarint(b[offset:])
+			if err != nil {
+				return offset + n, fieldError(fieldNumber, wireType, err)
+			}
+			if l > uint64(len(b)-(offset+n)) {
+				return len(b), fieldError(fieldNumber, wireType, io.ErrUnexpectedEOF)
+			}
+			if f.embedded() {
+				offset += n
+				data = b[offset : offset+int(l)]
+			} else {
+				data = b[offset : offset+n+int(l)]
+			}
+
+		case fixed32:
+			if (offset + 4) > len(b) {
+				return len(b), fieldError(fieldNumber, wireType, io.ErrUnexpectedEOF)
+			}
+			data = b[offset : offset+4]
+
+		case fixed64:
+			if (offset + 8) > len(b) {
+				return len(b), fieldError(fieldNumber, wireType, io.ErrUnexpectedEOF)
+			}
+			data = b[offset : offset+8]
+
+		default:
+			return offset, fieldError(fieldNumber, wireType, ErrWireTypeUnknown)
+		}
+
+		n, err = f.codec.decode(data, f.pointer(p), flags)
+		offset += n
+		if err != nil {
+			return offset, fieldError(fieldNumber, wireType, err)
+		}
 	}
+
+	return offset, nil
 }
 
 type structTag struct {

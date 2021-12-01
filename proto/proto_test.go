@@ -155,9 +155,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 			}
 
 			x := p.Interface()
-			if !reflect.DeepEqual(v, x) {
-				t.Errorf("values mismatch:\nexpected: %#v\nfound:    %#v", v, x)
-			}
+			assert.Equal(t, v, x)
 		})
 	}
 }
@@ -222,7 +220,7 @@ func TestProto2(t *testing.T) {
 			assert.Len(t, b, n)
 
 			p := new(testproto.Proto2)
-			assert.NoError(t, Unmarshal(b, &p))
+			assert.NoError(t, Unmarshal(b, p))
 			assert.Equal(t, v, p)
 		})
 	}

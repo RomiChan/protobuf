@@ -13,8 +13,8 @@ func Size(v interface{}) int {
 		panic(fmt.Errorf("proto.Marshal(%T): not a pointer", v))
 	}
 	t = t.Elem()
-	c := cachedCodecOf(t)
-	return c.size(p, noflags)
+	info := cachedStructInfoOf(t)
+	return info.size(p, noflags)
 }
 
 func Marshal(v interface{}) ([]byte, error) {
@@ -23,10 +23,10 @@ func Marshal(v interface{}) ([]byte, error) {
 		return nil, fmt.Errorf("proto.Marshal(%T): not a pointer", v)
 	}
 	t = t.Elem()
-	c := cachedCodecOf(t)
-	b := make([]byte, 0, c.size(p, noflags))
+	info := cachedStructInfoOf(t)
+	b := make([]byte, 0, info.size(p, noflags))
 	var err error
-	b, err = c.encode(b, p, noflags)
+	b, err = info.encode(b, p, noflags)
 	if err != nil {
 		return nil, fmt.Errorf("proto.Marshal(%T): %w", v, err)
 	}
@@ -41,7 +41,7 @@ func Unmarshal(b []byte, v interface{}) error {
 
 	t, p := inspect(v)
 	t = t.Elem() // Unmarshal must be passed a pointer
-	c := cachedCodecOf(t)
+	c := cachedStructInfoOf(t)
 
 	n, err := c.decode(b, p, noflags)
 	if err != nil {
@@ -135,50 +135,32 @@ type codec struct {
 	decode decodeFunc
 }
 
-var codecCache atomic.Value // map[unsafe.Pointer]*codec
+var structInfoCache atomic.Value // map[unsafe.Pointer]*structInfo
 
-func loadCachedCodec(t reflect.Type) (*codec, map[unsafe.Pointer]*codec) {
-	cache, _ := codecCache.Load().(map[unsafe.Pointer]*codec)
+func loadCachedStruct(t reflect.Type) (*structInfo, map[unsafe.Pointer]*structInfo) {
+	cache, _ := structInfoCache.Load().(map[unsafe.Pointer]*structInfo)
 	return cache[pointer(t)], cache
 }
 
-func storeCachedCodec(newCache map[unsafe.Pointer]*codec) {
-	codecCache.Store(newCache)
+func storeCachedStruct(newCache map[unsafe.Pointer]*structInfo) {
+	structInfoCache.Store(newCache)
 }
 
-func cachedCodecOf(t reflect.Type) *codec {
-	c, oldCache := loadCachedCodec(t)
+func cachedStructInfoOf(t reflect.Type) *structInfo {
+	c, oldCache := loadCachedStruct(t)
 	if c != nil {
 		return c
 	}
 
-	var p reflect.Type
-	isPtr := t.Kind() == reflect.Ptr
-	if isPtr {
-		p = t
-		t = t.Elem()
-	} else {
-		p = reflect.PtrTo(t)
-	}
-
 	seen := make(map[reflect.Type]*codec)
-	c1 := codecOf(t, seen, false)
-	c2 := codecOf(p, seen, false)
-
-	newCache := make(map[unsafe.Pointer]*codec, len(oldCache)+2)
+	newCache := make(map[unsafe.Pointer]*structInfo, len(oldCache)+1)
 	for p, c := range oldCache {
 		newCache[p] = c
 	}
-
-	newCache[pointer(t)] = c1
-	newCache[pointer(p)] = c2
-	storeCachedCodec(newCache)
-
-	if isPtr {
-		return c2
-	} else {
-		return c1
-	}
+	info := structInfoOf(t, seen)
+	newCache[pointer(t)] = info
+	storeCachedStruct(newCache)
+	return info
 }
 
 func codecOf(t reflect.Type, seen map[reflect.Type]*codec, zigzag bool) *codec {

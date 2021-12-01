@@ -40,9 +40,6 @@ func sliceSizeFuncOf(t reflect.Type, r *repeatedField) sizeFunc {
 				elem := v.Index(i, elemSize)
 				size := r.codec.size(elem, wantzero)
 				n += tagSize + size
-				if r.embedded {
-					n += sizeOfVarint(uint64(size))
-				}
 			}
 		}
 
@@ -59,12 +56,6 @@ func sliceEncodeFuncOf(t reflect.Type, r *repeatedField) encodeFunc {
 			for i := 0; i < s.Len(); i++ {
 				elem := s.Index(i, elemSize)
 				b = append(b, tagData...)
-
-				if r.embedded {
-					size := r.codec.size(elem, wantzero)
-					b = appendVarint(b, uint64(size))
-				}
-
 				b, err = r.codec.encode(b, elem, wantzero)
 				if err != nil {
 					return b, err
