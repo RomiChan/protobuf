@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 	"unsafe"
@@ -151,10 +152,15 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 	}
 }
 
-func mapDecodeFuncOf(t reflect.Type, _ *mapField, seen map[reflect.Type]*codec) decodeFunc {
+func formatWireTag(wire uint64) reflect.StructTag {
+	v := reflect.StructTag(fmt.Sprintf(`protobuf:"%s,%d,opt"`, wireType(wire&7), wire>>3))
+	return v
+}
+
+func mapDecodeFuncOf(t reflect.Type, m *mapField, seen map[reflect.Type]*codec) decodeFunc {
 	structType := reflect.StructOf([]reflect.StructField{
-		{Name: "Key", Type: t.Key()},
-		{Name: "Elem", Type: t.Elem()},
+		{Name: "Key", Type: t.Key(), Tag: formatWireTag(m.keyWireTag)},
+		{Name: "Elem", Type: t.Elem(), Tag: formatWireTag(m.valWireTag)},
 	})
 
 	structCodec := codecOf(structType, seen, false)

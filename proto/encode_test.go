@@ -52,18 +52,18 @@ func BenchmarkEncodeMessage(b *testing.B) {
 
 func BenchmarkEncodeMap(b *testing.B) {
 	msg := struct {
-		M map[string]string `protobuf:"bytes,1,opt"`
+		M map[string]string `protobuf:"bytes,1,opt" protobuf_key:"bytes,1,opt" protobuf_val:"bytes,2,opt"`
 	}{
 		M: map[string]string{
 			"hello": "world",
 		},
 	}
 
-	size := Size(msg)
+	size := Size(&msg)
 	b.SetBytes(int64(size))
 
 	for i := 0; i < b.N; i++ {
-		if _, err := Marshal(msg); err != nil {
+		if _, err := Marshal(&msg); err != nil {
 			b.Fatal(err)
 		}
 	}

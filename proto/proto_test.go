@@ -350,3 +350,33 @@ func TestFixedPointer(t *testing.T) {
 		t.Errorf("m2.Fixed64 = %x, want 0x0102030405060708", m2.Fixed64)
 	}
 }
+
+func TestMap(t *testing.T) {
+	type message struct {
+		StrMap map[string]string `protobuf:"bytes,1,opt" protobuf_key:"bytes,1,opt" protobuf_val:"bytes,2,opt"`
+		IntMap map[int64]int64   `protobuf:"bytes,2,opt" protobuf_key:"varint,1,opt" protobuf_val:"varint,2,opt"`
+	}
+
+	var mi = &message{
+		StrMap: map[string]string{
+			"":      "",
+			"a":     "b",
+			"hello": "world",
+		},
+		IntMap: map[int64]int64{
+			0:    0,
+			1:    1,
+			114:  514,
+			1919: 810,
+		},
+	}
+
+	size := Size(mi)
+	out, err := Marshal(mi)
+	assert.NoError(t, err)
+	assert.Equal(t, size, len(out))
+
+	var mo message
+	assert.NoError(t, Unmarshal(out, &mo))
+	assert.Equal(t, mi, &mo)
+}

@@ -119,7 +119,7 @@ func (wt wireType) String() string {
 	case varint:
 		return "varint"
 	case varlen:
-		return "varlen"
+		return "bytes"
 	case fixed32:
 		return "fixed32"
 	case fixed64:
