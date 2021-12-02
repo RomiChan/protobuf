@@ -152,58 +152,23 @@ func cachedStructInfoOf(t reflect.Type) *structInfo {
 		return c
 	}
 
-	seen := make(map[reflect.Type]*codec)
+	w := &walker{
+		codecs: make(map[reflect.Type]*codec),
+		infos:  make(map[reflect.Type]*structInfo),
+	}
+
 	newCache := make(map[unsafe.Pointer]*structInfo, len(oldCache)+1)
 	for p, c := range oldCache {
 		newCache[p] = c
 	}
-	info := structInfoOf(t, seen)
-	newCache[pointer(t)] = info
+
+	info := w.structInfo(t)
+	for t, info := range w.infos {
+		newCache[pointer(t)] = info
+	}
+
 	storeCachedStruct(newCache)
 	return info
-}
-
-func codecOf(t reflect.Type, seen map[reflect.Type]*codec, zigzag bool) *codec {
-	if c := seen[t]; c != nil {
-		return c
-	}
-
-	switch t.Kind() {
-	case reflect.Bool:
-		return &boolCodec
-	case reflect.Int32:
-		if zigzag {
-			return &zigzag32Codec
-		}
-		return &int32Codec
-	case reflect.Int64:
-		if zigzag {
-			return &zigzag64Codec
-		}
-		return &int64Codec
-	case reflect.Uint32:
-		return &uint32Codec
-	case reflect.Uint64:
-		return &uint64Codec
-	case reflect.Float32:
-		return &float32Codec
-	case reflect.Float64:
-		return &float64Codec
-	case reflect.String:
-		return &stringCodec
-	case reflect.Slice:
-		elem := t.Elem()
-		switch elem.Kind() {
-		case reflect.Uint8:
-			return &bytesCodec
-		}
-	case reflect.Struct:
-		return structCodecOf(t, seen)
-	case reflect.Ptr:
-		return pointerCodecOf(t, seen, zigzag)
-	}
-
-	panic("unsupported type: " + t.String())
 }
 
 // Bool stores v in a new bool value and returns a pointer to it.

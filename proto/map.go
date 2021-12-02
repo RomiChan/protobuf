@@ -21,13 +21,13 @@ type mapField struct {
 	valCodec   *codec
 }
 
-func mapCodecOf(t reflect.Type, f *mapField, seen map[reflect.Type]*codec) *codec {
+func (w *walker) mapCodec(t reflect.Type, f *mapField) *codec {
 	m := new(codec)
-	seen[t] = m
+	w.codecs[t] = m
 
 	m.size = mapSizeFuncOf(t, f)
 	m.encode = mapEncodeFuncOf(t, f)
-	m.decode = mapDecodeFuncOf(t, f, seen)
+	m.decode = mapDecodeFuncOf(t, f, w)
 	return m
 }
 
@@ -156,13 +156,13 @@ func formatWireTag(wire uint64) reflect.StructTag {
 	return reflect.StructTag(fmt.Sprintf(`protobuf:"%s,%d,opt"`, wireType(wire&7), wire>>3))
 }
 
-func mapDecodeFuncOf(t reflect.Type, m *mapField, seen map[reflect.Type]*codec) decodeFunc {
+func mapDecodeFuncOf(t reflect.Type, m *mapField, w *walker) decodeFunc {
 	structType := reflect.StructOf([]reflect.StructField{
 		{Name: "Key", Type: t.Key(), Tag: formatWireTag(m.keyWireTag)},
 		{Name: "Elem", Type: t.Elem(), Tag: formatWireTag(m.valWireTag)},
 	})
 
-	structCodec := codecOf(structType, seen, false)
+	structCodec := w.codec(structType, false)
 	structPool := new(sync.Pool)
 	structZero := pointer(reflect.Zero(structType).Interface())
 

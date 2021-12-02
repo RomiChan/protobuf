@@ -38,17 +38,3 @@ func decodeBytes(b []byte, p unsafe.Pointer, _ flags) (int, error) {
 	*pb = append((*pb)[:0], v...)
 	return n, err
 }
-
-func makeBytes(p unsafe.Pointer, n int) []byte {
-	return *(*[]byte)(unsafe.Pointer(&sliceHeader{
-		Data: p,
-		Len:  n,
-		Cap:  n,
-	}))
-}
-
-type sliceHeader struct {
-	Data unsafe.Pointer
-	Len  int
-	Cap  int
-}

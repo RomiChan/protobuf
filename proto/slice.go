@@ -13,9 +13,9 @@ type repeatedField struct {
 	embedded bool
 }
 
-func sliceCodecOf(t reflect.Type, f structField, seen map[reflect.Type]*codec) *codec {
+func sliceCodecOf(t reflect.Type, f structField, w *walker) *codec {
 	s := new(codec)
-	seen[t] = s
+	w.codecs[t] = s
 
 	r := &repeatedField{
 		codec:    f.codec,
