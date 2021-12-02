@@ -10,7 +10,12 @@ type walker struct {
 	infos  map[reflect.Type]*structInfo
 }
 
-func (w *walker) codec(t reflect.Type, zigzag bool) *codec {
+type walkerConfig struct {
+	zigzag   bool
+	required bool
+}
+
+func (w *walker) codec(t reflect.Type, conf *walkerConfig) *codec {
 	if c, ok := w.codecs[t]; ok {
 		return c
 	}
@@ -19,12 +24,12 @@ func (w *walker) codec(t reflect.Type, zigzag bool) *codec {
 	case reflect.Bool:
 		return &boolCodec
 	case reflect.Int32:
-		if zigzag {
+		if conf.zigzag {
 			return &zigzag32Codec
 		}
 		return &int32Codec
 	case reflect.Int64:
-		if zigzag {
+		if conf.zigzag {
 			return &zigzag64Codec
 		}
 		return &int64Codec
@@ -37,6 +42,9 @@ func (w *walker) codec(t reflect.Type, zigzag bool) *codec {
 	case reflect.Float64:
 		return &float64Codec
 	case reflect.String:
+		if conf.required {
+			return &stringRequiredCodec
+		}
 		return &stringCodec
 	case reflect.Slice:
 		elem := t.Elem()
@@ -47,7 +55,7 @@ func (w *walker) codec(t reflect.Type, zigzag bool) *codec {
 	case reflect.Struct:
 		return w.structCodec(t)
 	case reflect.Ptr:
-		return w.pointer(t, zigzag)
+		return w.pointer(t, conf)
 	}
 
 	panic("unsupported type: " + t.String())
@@ -148,36 +156,44 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 		}
 
 		if field.codec == nil {
+			conf := &walkerConfig{
+				zigzag: t.zigzag,
+				// required: t.required,
+			}
 			switch baseKindOf(f.Type) {
 			case reflect.Struct:
 				field.flags |= embedded
-				field.codec = w.codec(f.Type, false)
+				field.codec = w.codec(f.Type, conf)
 
 			case reflect.Slice:
 				elem := f.Type.Elem()
 
 				if elem.Kind() == reflect.Uint8 { // []byte
-					field.codec = w.codec(f.Type, false)
+					field.codec = w.codec(f.Type, conf)
 				} else {
 					if baseKindOf(elem) == reflect.Struct {
 						field.flags |= embedded
 					}
+					conf.required = true
 					field.flags |= repeated
-					field.codec = w.codec(elem, t.zigzag)
+					field.codec = w.codec(elem, conf)
 					field.codec = sliceCodecOf(f.Type, field, w)
 				}
 
 			case reflect.Map:
+				conf.required = true // map key and val should be encoded always
 				key, val := f.Type.Key(), f.Type.Elem()
 				m := &mapField{wiretag: field.wiretag}
 
 				t, _ := parseStructTag(f.Tag.Get("protobuf_key"))
 				m.keyWireTag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
-				m.keyCodec = w.codec(key, t.zigzag)
+				conf.zigzag = t.zigzag
+				m.keyCodec = w.codec(key, conf)
 
 				t, _ = parseStructTag(f.Tag.Get("protobuf_val"))
 				m.valWireTag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
-				m.valCodec = w.codec(val, t.zigzag)
+				conf.zigzag = t.zigzag
+				m.valCodec = w.codec(val, conf)
 
 				if baseKindOf(key) == reflect.Struct {
 					m.keyFlags |= embedded
@@ -189,7 +205,7 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 				field.codec = w.mapCodec(f.Type, m)
 
 			default:
-				field.codec = w.codec(f.Type, t.zigzag)
+				field.codec = w.codec(f.Type, conf)
 			}
 		}
 
@@ -212,10 +228,21 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 
 // @@@ Pointers @@@
 
-func (w *walker) pointer(t reflect.Type, zigzag bool) *codec {
+func deref(p unsafe.Pointer) unsafe.Pointer {
+	return *(*unsafe.Pointer)(p)
+}
+
+func (w *walker) pointer(t reflect.Type, conf *walkerConfig) *codec {
+	switch t.Elem().Kind() {
+	case reflect.Bool:
+		return &boolPtrCodec
+	case reflect.String:
+		return &stringPtrCodec
+	}
+	// common value
 	p := new(codec)
 	w.codecs[t] = p
-	c := w.codec(t.Elem(), zigzag)
+	c := w.codec(t.Elem(), conf)
 	p.size = pointerSizeFuncOf(t, c)
 	p.encode = pointerEncodeFuncOf(t, c)
 	p.decode = pointerDecodeFuncOf(t, c)
@@ -235,7 +262,7 @@ func pointerSizeFuncOf(_ reflect.Type, c *codec) sizeFunc {
 func pointerEncodeFuncOf(_ reflect.Type, c *codec) encodeFunc {
 	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
 		if p != nil {
-			p = *(*unsafe.Pointer)(p)
+			p = deref(p)
 			return c.encode(b, p, flags.with(wantzero))
 		}
 		return b, nil

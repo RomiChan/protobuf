@@ -162,7 +162,11 @@ func mapDecodeFuncOf(t reflect.Type, m *mapField, w *walker) decodeFunc {
 		{Name: "Elem", Type: t.Elem(), Tag: formatWireTag(m.valWireTag)},
 	})
 
-	structCodec := w.codec(structType, false)
+	conf := &walkerConfig{
+		zigzag:   false,
+		required: true,
+	}
+	structCodec := w.codec(structType, conf)
 	structPool := new(sync.Pool)
 	structZero := pointer(reflect.Zero(structType).Interface())
 
