@@ -51,7 +51,6 @@ func (w *walker) codec(t reflect.Type, zigzag bool) *codec {
 	}
 
 	panic("unsupported type: " + t.String())
-	return nil
 }
 
 func (w *walker) structCodec(t reflect.Type) *codec {
