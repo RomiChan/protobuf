@@ -1,0 +1,40 @@
+syntax = "proto2";
+
+package pb;
+
+option go_package = "./;benchmark";
+
+message BenchSmall {
+  optional string action = 1;
+  optional bytes key = 2;
+}
+
+message BenchMedium {
+  optional string name = 1;
+  optional int64 age = 2;
+  optional float height = 3;
+  optional double weight = 4;
+  optional bool alive = 5;
+  optional bytes desc = 6;
+}
+
+message BenchLarge {
+  optional string name = 1;
+  optional int64 age = 2;
+  optional float height = 3;
+  optional double weight = 4;
+  optional bool alive = 5;
+  optional bytes desc = 6;
+  optional string nickname = 7;
+  optional int64 num = 8;
+  optional float flt = 9;
+  optional double dbl = 10;
+  optional bool tru = 11;
+  optional bytes data = 12;
+}
+
+message BenchNested {
+  optional BenchSmall small = 1;
+  optional BenchMedium medium = 2;
+  optional BenchLarge large = 3;
+}
