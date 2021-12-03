@@ -5,7 +5,7 @@ import (
 	"unsafe"
 )
 
-type sizeFunc = func(unsafe.Pointer, flags) int
+type sizeFunc = func(unsafe.Pointer) int
 
 func sizeOfVarint(v uint64) int {
 	// This computes 1 + (bits.Len64(v)-1)/7.

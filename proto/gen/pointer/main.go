@@ -21,28 +21,28 @@ var {{.Codec}}PtrCodec = codec{
 	decode: decode{{.Name}}Ptr,
 }
 
-func sizeOf{{.Name}}Ptr(p unsafe.Pointer, flags flags) int {
+func sizeOf{{.Name}}Ptr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOf{{.Name}}Required(p, flags)
+		return sizeOf{{.Name}}Required(p)
 	}
 	return 0
 }
 
-func encode{{.Name}}Ptr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encode{{.Name}}Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encode{{.Name}}Required(b, p, flags)
+		return encode{{.Name}}Required(b, p)
 	}
 	return b, nil
 }
 
-func decode{{.Name}}Ptr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decode{{.Name}}Ptr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new({{.Type}}))
 	}
-	return decode{{.Name}}(b, *v, flags)
+	return decode{{.Name}}(b, *v)
 }
 
 {{end}}

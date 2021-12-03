@@ -17,7 +17,7 @@ func Size(v interface{}) int {
 	}
 	t = t.Elem()
 	info := cachedStructInfoOf(t)
-	return info.size(p, noflags)
+	return info.size(p)
 }
 
 func Marshal(v interface{}) ([]byte, error) {
@@ -27,9 +27,9 @@ func Marshal(v interface{}) ([]byte, error) {
 	}
 	t = t.Elem()
 	info := cachedStructInfoOf(t)
-	b := make([]byte, 0, info.size(p, noflags))
+	b := make([]byte, 0, info.size(p))
 	var err error
-	b, err = info.encode(b, p, noflags)
+	b, err = info.encode(b, p)
 	if err != nil {
 		return nil, fmt.Errorf("proto.Marshal(%T): %w", v, err)
 	}
@@ -46,7 +46,7 @@ func Unmarshal(b []byte, v interface{}) error {
 	t = t.Elem() // Unmarshal must be passed a pointer
 	c := cachedStructInfoOf(t)
 
-	n, err := c.decode(b, p, noflags)
+	n, err := c.decode(b, p)
 	if err != nil {
 		return err
 	}
@@ -54,43 +54,6 @@ func Unmarshal(b []byte, v interface{}) error {
 		return fmt.Errorf("proto.Unmarshal(%T): read=%d < buffer=%d", v, n, len(b))
 	}
 	return nil
-}
-
-type flags uintptr
-
-const (
-	noflags  flags = 0
-	wantzero flags = 1 << 1
-	// Shared with structField.flags in struct.go:
-	// zigzag flags = 1 << 2
-)
-
-func (f flags) has(x flags) bool {
-	return (f & x) != 0
-}
-
-func (f flags) with(x flags) flags {
-	return f | x
-}
-
-func (f flags) without(x flags) flags {
-	return f & ^x
-}
-
-func (f flags) uint64(i int64) uint64 {
-	if f.has(zigzag) {
-		return encodeZigZag64(i)
-	} else {
-		return uint64(i)
-	}
-}
-
-func (f flags) int64(u uint64) int64 {
-	if f.has(zigzag) {
-		return decodeZigZag64(u)
-	} else {
-		return int64(u)
-	}
 }
 
 type iface struct {

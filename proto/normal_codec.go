@@ -12,14 +12,14 @@ var boolCodec = codec{
 	decode: decodeBool,
 }
 
-func sizeOfBool(p unsafe.Pointer, _ flags) int {
+func sizeOfBool(p unsafe.Pointer) int {
 	if *(*bool)(p) {
 		return 1
 	}
 	return 0
 }
 
-func encodeBool(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeBool(b []byte, p unsafe.Pointer) ([]byte, error) {
 	if *(*bool)(p) {
 		if *(*bool)(p) { // keep this for code generate
 			b = append(b, 1)
@@ -31,7 +31,7 @@ func encodeBool(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 	return b, nil
 }
 
-func decodeBool(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeBool(b []byte, p unsafe.Pointer) (int, error) {
 	if len(b) == 0 {
 		return 0, io.ErrUnexpectedEOF
 	}
@@ -45,7 +45,7 @@ var bytesCodec = codec{
 	decode: decodeBytes,
 }
 
-func sizeOfBytes(p unsafe.Pointer, _ flags) int {
+func sizeOfBytes(p unsafe.Pointer) int {
 	v := *(*[]byte)(p)
 	if v != nil {
 		return sizeOfVarlen(len(v))
@@ -53,7 +53,7 @@ func sizeOfBytes(p unsafe.Pointer, _ flags) int {
 	return 0
 }
 
-func encodeBytes(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeBytes(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*[]byte)(p)
 	if v != nil {
 		b = appendVarint(b, uint64(len(v)))
@@ -62,7 +62,7 @@ func encodeBytes(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 	return b, nil
 }
 
-func decodeBytes(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeBytes(b []byte, p unsafe.Pointer) (int, error) {
 	v, n, err := decodeVarlen(b)
 	pb := (*[]byte)(p)
 	if *pb == nil {
@@ -78,7 +78,7 @@ var stringCodec = codec{
 	decode: decodeString,
 }
 
-func sizeOfString(p unsafe.Pointer, _ flags) int {
+func sizeOfString(p unsafe.Pointer) int {
 	v := *(*string)(p)
 	if v != "" {
 		return sizeOfVarlen(len(v))
@@ -86,7 +86,7 @@ func sizeOfString(p unsafe.Pointer, _ flags) int {
 	return 0
 }
 
-func encodeString(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeString(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*string)(p)
 	if v != "" {
 		b = appendVarint(b, uint64(len(v)))
@@ -95,7 +95,7 @@ func encodeString(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 	return b, nil
 }
 
-func decodeString(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeString(b []byte, p unsafe.Pointer) (int, error) {
 	v, n, err := decodeVarlen(b)
 	if n == 0 {
 		*(*string)(p) = ""
@@ -111,7 +111,7 @@ var float32Codec = codec{
 	decode: decodeFloat32,
 }
 
-func sizeOfFloat32(p unsafe.Pointer, _ flags) int {
+func sizeOfFloat32(p unsafe.Pointer) int {
 	if v := *(*float32)(p); v != 0 || math.Signbit(float64(v)) {
 		_ = v // for generate code
 		return 4
@@ -119,14 +119,14 @@ func sizeOfFloat32(p unsafe.Pointer, _ flags) int {
 	return 0
 }
 
-func encodeFloat32(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeFloat32(b []byte, p unsafe.Pointer) ([]byte, error) {
 	if v := *(*float32)(p); v != 0 || math.Signbit(float64(v)) {
 		b = encodeLE32(b, math.Float32bits(v))
 	}
 	return b, nil
 }
 
-func decodeFloat32(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeFloat32(b []byte, p unsafe.Pointer) (int, error) {
 	v, n, err := decodeLE32(b)
 	*(*float32)(p) = math.Float32frombits(v)
 	return n, err
@@ -138,7 +138,7 @@ var float64Codec = codec{
 	decode: decodeFloat64,
 }
 
-func sizeOfFloat64(p unsafe.Pointer, _ flags) int {
+func sizeOfFloat64(p unsafe.Pointer) int {
 	if v := *(*float64)(p); v != 0 || math.Signbit(v) {
 		_ = v
 		return 8
@@ -146,7 +146,7 @@ func sizeOfFloat64(p unsafe.Pointer, _ flags) int {
 	return 0
 }
 
-func encodeFloat64(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeFloat64(b []byte, p unsafe.Pointer) ([]byte, error) {
 
 	if v := *(*float64)(p); v != 0 || math.Signbit(v) {
 		b = encodeLE64(b, math.Float64bits(v))
@@ -154,7 +154,7 @@ func encodeFloat64(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 	return b, nil
 }
 
-func decodeFloat64(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeFloat64(b []byte, p unsafe.Pointer) (int, error) {
 	v, n, err := decodeLE64(b)
 	*(*float64)(p) = math.Float64frombits(v)
 	return n, err
@@ -166,7 +166,7 @@ var int32Codec = codec{
 	decode: decodeInt32,
 }
 
-func sizeOfInt32(p unsafe.Pointer, _ flags) int {
+func sizeOfInt32(p unsafe.Pointer) int {
 	v := *(*int32)(p)
 	if v != 0 {
 		return sizeOfVarint(uint64(v))
@@ -174,7 +174,7 @@ func sizeOfInt32(p unsafe.Pointer, _ flags) int {
 	return 0
 }
 
-func encodeInt32(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeInt32(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*int32)(p)
 	if v != 0 {
 		b = appendVarint(b, uint64(v))
@@ -182,7 +182,7 @@ func encodeInt32(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 	return b, nil
 }
 
-func decodeInt32(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeInt32(b []byte, p unsafe.Pointer) (int, error) {
 	u, n, err := decodeVarint(b)
 	*(*int32)(p) = int32(int64(u))
 	return n, err
@@ -194,7 +194,7 @@ var int64Codec = codec{
 	decode: decodeInt64,
 }
 
-func sizeOfInt64(p unsafe.Pointer, _ flags) int {
+func sizeOfInt64(p unsafe.Pointer) int {
 	v := *(*int64)(p)
 	if v != 0 {
 		return sizeOfVarint(uint64(v))
@@ -202,7 +202,7 @@ func sizeOfInt64(p unsafe.Pointer, _ flags) int {
 	return 0
 }
 
-func encodeInt64(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeInt64(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*int64)(p)
 	if v != 0 {
 		b = appendVarint(b, uint64(v))
@@ -210,7 +210,7 @@ func encodeInt64(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 	return b, nil
 }
 
-func decodeInt64(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeInt64(b []byte, p unsafe.Pointer) (int, error) {
 	v, n, err := decodeVarint(b)
 	*(*int64)(p) = int64(v)
 	return n, err
@@ -222,21 +222,21 @@ var uint32Codec = codec{
 	decode: decodeUint32,
 }
 
-func sizeOfUint32(p unsafe.Pointer, _ flags) int {
+func sizeOfUint32(p unsafe.Pointer) int {
 	if v := *(*uint32)(p); v != 0 {
 		return sizeOfVarint(uint64(v))
 	}
 	return 0
 }
 
-func encodeUint32(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeUint32(b []byte, p unsafe.Pointer) ([]byte, error) {
 	if v := *(*uint32)(p); v != 0 {
 		b = appendVarint(b, uint64(v))
 	}
 	return b, nil
 }
 
-func decodeUint32(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeUint32(b []byte, p unsafe.Pointer) (int, error) {
 	v, n, err := decodeVarint(b)
 	*(*uint32)(p) = uint32(v)
 	return n, err
@@ -248,21 +248,21 @@ var fixed32Codec = codec{
 	decode: decodeFixed32,
 }
 
-func sizeOfFixed32(p unsafe.Pointer, _ flags) int {
+func sizeOfFixed32(p unsafe.Pointer) int {
 	if *(*uint32)(p) != 0 {
 		return 4
 	}
 	return 0
 }
 
-func encodeFixed32(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeFixed32(b []byte, p unsafe.Pointer) ([]byte, error) {
 	if v := *(*uint32)(p); v != 0 {
 		b = encodeLE32(b, v)
 	}
 	return b, nil
 }
 
-func decodeFixed32(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeFixed32(b []byte, p unsafe.Pointer) (int, error) {
 	v, n, err := decodeLE32(b)
 	*(*uint32)(p) = v
 	return n, err
@@ -274,21 +274,21 @@ var uint64Codec = codec{
 	decode: decodeUint64,
 }
 
-func sizeOfUint64(p unsafe.Pointer, _ flags) int {
+func sizeOfUint64(p unsafe.Pointer) int {
 	if v := *(*uint64)(p); v != 0 {
 		return sizeOfVarint(v)
 	}
 	return 0
 }
 
-func encodeUint64(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeUint64(b []byte, p unsafe.Pointer) ([]byte, error) {
 	if v := *(*uint64)(p); v != 0 {
 		b = appendVarint(b, v)
 	}
 	return b, nil
 }
 
-func decodeUint64(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeUint64(b []byte, p unsafe.Pointer) (int, error) {
 	v, n, err := decodeVarint(b)
 	*(*uint64)(p) = v
 	return n, err
@@ -300,21 +300,21 @@ var fixed64Codec = codec{
 	decode: decodeFixed64,
 }
 
-func sizeOfFixed64(p unsafe.Pointer, _ flags) int {
+func sizeOfFixed64(p unsafe.Pointer) int {
 	if *(*uint64)(p) != 0 {
 		return 8
 	}
 	return 0
 }
 
-func encodeFixed64(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeFixed64(b []byte, p unsafe.Pointer) ([]byte, error) {
 	if v := *(*uint64)(p); v != 0 {
 		b = encodeLE64(b, v)
 	}
 	return b, nil
 }
 
-func decodeFixed64(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeFixed64(b []byte, p unsafe.Pointer) (int, error) {
 	v, n, err := decodeLE64(b)
 	*(*uint64)(p) = v
 	return n, err
@@ -326,21 +326,21 @@ var zigzag32Codec = codec{
 	decode: decodeZigzag32,
 }
 
-func sizeOfZigzag32(p unsafe.Pointer, _ flags) int {
+func sizeOfZigzag32(p unsafe.Pointer) int {
 	if v := *(*int32)(p); v != 0 {
 		return sizeOfVarint(encodeZigZag64(int64(v)))
 	}
 	return 0
 }
 
-func encodeZigzag32(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeZigzag32(b []byte, p unsafe.Pointer) ([]byte, error) {
 	if v := *(*int32)(p); v != 0 {
 		b = appendVarint(b, encodeZigZag64(int64(v)))
 	}
 	return b, nil
 }
 
-func decodeZigzag32(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeZigzag32(b []byte, p unsafe.Pointer) (int, error) {
 	u, n, err := decodeVarint(b)
 	*(*int32)(p) = int32(decodeZigZag64(u))
 	return n, err
@@ -352,21 +352,21 @@ var zigzag64Codec = codec{
 	decode: decodeZigzag64,
 }
 
-func sizeOfZigzag64(p unsafe.Pointer, _ flags) int {
+func sizeOfZigzag64(p unsafe.Pointer) int {
 	if v := *(*int64)(p); v != 0 {
 		return sizeOfVarint(encodeZigZag64(v))
 	}
 	return 0
 }
 
-func encodeZigzag64(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeZigzag64(b []byte, p unsafe.Pointer) ([]byte, error) {
 	if v := *(*int64)(p); v != 0 {
 		b = appendVarint(b, encodeZigZag64(v))
 	}
 	return b, nil
 }
 
-func decodeZigzag64(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+func decodeZigzag64(b []byte, p unsafe.Pointer) (int, error) {
 	v, n, err := decodeVarint(b)
 	*(*int64)(p) = decodeZigZag64(v)
 	return n, err

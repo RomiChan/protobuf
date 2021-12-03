@@ -9,10 +9,10 @@ import (
 
 var boolRequiredCodec = codec{size: sizeOfBoolRequired, encode: encodeBoolRequired, decode: decodeBool}
 
-func sizeOfBoolRequired(p unsafe.Pointer, _ flags) int {
+func sizeOfBoolRequired(p unsafe.Pointer) int {
 	return 1
 }
-func encodeBoolRequired(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeBoolRequired(b []byte, p unsafe.Pointer) ([]byte, error) {
 	if *(*bool)(p) {
 		b = append(b, 1)
 	} else {
@@ -23,11 +23,11 @@ func encodeBoolRequired(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 
 var stringRequiredCodec = codec{size: sizeOfStringRequired, encode: encodeStringRequired, decode: decodeString}
 
-func sizeOfStringRequired(p unsafe.Pointer, _ flags) int {
+func sizeOfStringRequired(p unsafe.Pointer) int {
 	v := *(*string)(p)
 	return sizeOfVarlen(len(v))
 }
-func encodeStringRequired(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeStringRequired(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*string)(p)
 	b = appendVarint(b, uint64(len(v)))
 	b = append(b, v...)
@@ -36,12 +36,12 @@ func encodeStringRequired(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 
 var float32RequiredCodec = codec{size: sizeOfFloat32Required, encode: encodeFloat32Required, decode: decodeFloat32}
 
-func sizeOfFloat32Required(p unsafe.Pointer, _ flags) int {
+func sizeOfFloat32Required(p unsafe.Pointer) int {
 	v := *(*float32)(p)
 	_ = v
 	return 4
 }
-func encodeFloat32Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeFloat32Required(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*float32)(p)
 	b = encodeLE32(b, math.Float32bits(v))
 	return b, nil
@@ -49,12 +49,12 @@ func encodeFloat32Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) 
 
 var float64RequiredCodec = codec{size: sizeOfFloat64Required, encode: encodeFloat64Required, decode: decodeFloat64}
 
-func sizeOfFloat64Required(p unsafe.Pointer, _ flags) int {
+func sizeOfFloat64Required(p unsafe.Pointer) int {
 	v := *(*float64)(p)
 	_ = v
 	return 8
 }
-func encodeFloat64Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeFloat64Required(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*float64)(p)
 	b = encodeLE64(b, math.Float64bits(v))
 	return b, nil
@@ -62,11 +62,11 @@ func encodeFloat64Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) 
 
 var int32RequiredCodec = codec{size: sizeOfInt32Required, encode: encodeInt32Required, decode: decodeInt32}
 
-func sizeOfInt32Required(p unsafe.Pointer, _ flags) int {
+func sizeOfInt32Required(p unsafe.Pointer) int {
 	v := *(*int32)(p)
 	return sizeOfVarint(uint64(v))
 }
-func encodeInt32Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeInt32Required(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*int32)(p)
 	b = appendVarint(b, uint64(v))
 	return b, nil
@@ -74,11 +74,11 @@ func encodeInt32Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 
 var int64RequiredCodec = codec{size: sizeOfInt64Required, encode: encodeInt64Required, decode: decodeInt64}
 
-func sizeOfInt64Required(p unsafe.Pointer, _ flags) int {
+func sizeOfInt64Required(p unsafe.Pointer) int {
 	v := *(*int64)(p)
 	return sizeOfVarint(uint64(v))
 }
-func encodeInt64Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeInt64Required(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*int64)(p)
 	b = appendVarint(b, uint64(v))
 	return b, nil
@@ -86,11 +86,11 @@ func encodeInt64Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 
 var uint32RequiredCodec = codec{size: sizeOfUint32Required, encode: encodeUint32Required, decode: decodeUint32}
 
-func sizeOfUint32Required(p unsafe.Pointer, _ flags) int {
+func sizeOfUint32Required(p unsafe.Pointer) int {
 	v := *(*uint32)(p)
 	return sizeOfVarint(uint64(v))
 }
-func encodeUint32Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeUint32Required(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*uint32)(p)
 	b = appendVarint(b, uint64(v))
 	return b, nil
@@ -98,10 +98,10 @@ func encodeUint32Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 
 var fixed32RequiredCodec = codec{size: sizeOfFixed32Required, encode: encodeFixed32Required, decode: decodeFixed32}
 
-func sizeOfFixed32Required(p unsafe.Pointer, _ flags) int {
+func sizeOfFixed32Required(p unsafe.Pointer) int {
 	return 4
 }
-func encodeFixed32Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeFixed32Required(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*uint32)(p)
 	b = encodeLE32(b, v)
 	return b, nil
@@ -109,11 +109,11 @@ func encodeFixed32Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) 
 
 var uint64RequiredCodec = codec{size: sizeOfUint64Required, encode: encodeUint64Required, decode: decodeUint64}
 
-func sizeOfUint64Required(p unsafe.Pointer, _ flags) int {
+func sizeOfUint64Required(p unsafe.Pointer) int {
 	v := *(*uint64)(p)
 	return sizeOfVarint(v)
 }
-func encodeUint64Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeUint64Required(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*uint64)(p)
 	b = appendVarint(b, v)
 	return b, nil
@@ -121,10 +121,10 @@ func encodeUint64Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 
 var fixed64RequiredCodec = codec{size: sizeOfFixed64Required, encode: encodeFixed64Required, decode: decodeFixed64}
 
-func sizeOfFixed64Required(p unsafe.Pointer, _ flags) int {
+func sizeOfFixed64Required(p unsafe.Pointer) int {
 	return 8
 }
-func encodeFixed64Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeFixed64Required(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*uint64)(p)
 	b = encodeLE64(b, v)
 	return b, nil
@@ -132,11 +132,11 @@ func encodeFixed64Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) 
 
 var zigzag32RequiredCodec = codec{size: sizeOfZigzag32Required, encode: encodeZigzag32Required, decode: decodeZigzag32}
 
-func sizeOfZigzag32Required(p unsafe.Pointer, _ flags) int {
+func sizeOfZigzag32Required(p unsafe.Pointer) int {
 	v := *(*int32)(p)
 	return sizeOfVarint(encodeZigZag64(int64(v)))
 }
-func encodeZigzag32Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeZigzag32Required(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*int32)(p)
 	b = appendVarint(b, encodeZigZag64(int64(v)))
 	return b, nil
@@ -144,11 +144,11 @@ func encodeZigzag32Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error)
 
 var zigzag64RequiredCodec = codec{size: sizeOfZigzag64Required, encode: encodeZigzag64Required, decode: decodeZigzag64}
 
-func sizeOfZigzag64Required(p unsafe.Pointer, _ flags) int {
+func sizeOfZigzag64Required(p unsafe.Pointer) int {
 	v := *(*int64)(p)
 	return sizeOfVarint(encodeZigZag64(v))
 }
-func encodeZigzag64Required(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+func encodeZigzag64Required(b []byte, p unsafe.Pointer) ([]byte, error) {
 	v := *(*int64)(p)
 	b = appendVarint(b, encodeZigZag64(v))
 	return b, nil

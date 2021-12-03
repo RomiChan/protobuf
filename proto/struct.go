@@ -11,7 +11,6 @@ import (
 const (
 	embedded = 1 << 0
 	repeated = 1 << 1
-	zigzag   = 1 << 2
 )
 
 type structInfo struct {
@@ -51,7 +50,7 @@ func (f *structField) pointer(p unsafe.Pointer) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + f.offset)
 }
 
-func (info *structInfo) size(p unsafe.Pointer, flags flags) int {
+func (info *structInfo) size(p unsafe.Pointer) int {
 	if p == nil {
 		return 0
 	}
@@ -59,23 +58,21 @@ func (info *structInfo) size(p unsafe.Pointer, flags flags) int {
 	n := 0
 	for _, f := range info.fields {
 		if f.repeated() {
-			size := f.codec.size(f.pointer(p), flags)
+			size := f.codec.size(f.pointer(p))
 			if size > 0 {
 				n += size
-				flags = flags.without(wantzero)
 			}
 			continue
 		}
-		size := f.codec.size(f.pointer(p), flags)
+		size := f.codec.size(f.pointer(p))
 		if size > 0 {
 			n += int(f.tagsize) + size
-			flags = flags.without(wantzero)
 		}
 	}
 	return n
 }
 
-func (info *structInfo) encode(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func (info *structInfo) encode(b []byte, p unsafe.Pointer) ([]byte, error) {
 	if p == nil {
 		return b, nil
 	}
@@ -83,29 +80,26 @@ func (info *structInfo) encode(b []byte, p unsafe.Pointer, flags flags) ([]byte,
 	var err error
 	for _, f := range info.fields {
 		if f.repeated() {
-			b, err = f.codec.encode(b, f.pointer(p), flags)
+			b, err = f.codec.encode(b, f.pointer(p))
 			if err != nil {
 				return b, err
 			}
 			continue
 		}
 		elem := f.pointer(p)
-		size := f.codec.size(elem, flags)
+		size := f.codec.size(elem)
 		if size > 0 {
 			b = appendVarint(b, f.wiretag)
-
-			b, err = f.codec.encode(b, elem, flags)
+			b, err = f.codec.encode(b, elem)
 			if err != nil {
 				return b, err
 			}
-
-			flags = flags.without(wantzero)
 		}
 	}
 	return b, nil
 }
 
-func (info *structInfo) decode(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func (info *structInfo) decode(b []byte, p unsafe.Pointer) (int, error) {
 	offset := 0
 	for offset < len(b) {
 		fieldNumber, wireType, n, err := decodeTag(b[offset:])
@@ -195,7 +189,7 @@ func (info *structInfo) decode(b []byte, p unsafe.Pointer, flags flags) (int, er
 			return offset, fieldError(fieldNumber, wireType, ErrWireTypeUnknown)
 		}
 
-		n, err = f.codec.decode(data, f.pointer(p), flags)
+		n, err = f.codec.decode(data, f.pointer(p))
 		offset += n
 		if err != nil {
 			return offset, fieldError(fieldNumber, wireType, err)

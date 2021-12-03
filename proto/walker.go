@@ -68,30 +68,30 @@ func (w *walker) structCodec(t reflect.Type) *codec {
 	w.codecs[t] = c
 	elem := t.Elem()
 	info := w.structInfo(elem)
-	c.size = func(p unsafe.Pointer, f flags) int {
+	c.size = func(p unsafe.Pointer) int {
 		p = deref(p)
 		if p != nil {
-			n := info.size(p, f)
+			n := info.size(p)
 			n += sizeOfVarint(uint64(n))
 			return n
 		}
 		return 0
 	}
-	c.encode = func(b []byte, p unsafe.Pointer, f flags) ([]byte, error) {
+	c.encode = func(b []byte, p unsafe.Pointer) ([]byte, error) {
 		p = deref(p)
 		if p != nil {
-			n := info.size(p, f)
+			n := info.size(p)
 			b = appendVarint(b, uint64(n))
-			return info.encode(b, p, f)
+			return info.encode(b, p)
 		}
 		return b, nil
 	}
-	c.decode = func(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+	c.decode = func(b []byte, p unsafe.Pointer) (int, error) {
 		v := (*unsafe.Pointer)(p)
 		if *v == nil {
 			*v = unsafe.Pointer(reflect.New(elem).Pointer())
 		}
-		return info.decode(b, *v, flags)
+		return info.decode(b, *v)
 	}
 	return c
 }
@@ -330,20 +330,20 @@ func (w *walker) required(t reflect.Type, conf *walkerConfig) *codec {
 }
 
 func pointerSizeFuncOf(_ reflect.Type, c *codec) sizeFunc {
-	return func(p unsafe.Pointer, flags flags) int {
+	return func(p unsafe.Pointer) int {
 		if p != nil {
 			p = *(*unsafe.Pointer)(p)
-			return c.size(p, flags.with(wantzero))
+			return c.size(p)
 		}
 		return 0
 	}
 }
 
 func pointerEncodeFuncOf(_ reflect.Type, c *codec) encodeFunc {
-	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+	return func(b []byte, p unsafe.Pointer) ([]byte, error) {
 		if p != nil {
 			p = deref(p)
-			return c.encode(b, p, flags.with(wantzero))
+			return c.encode(b, p)
 		}
 		return b, nil
 	}
@@ -351,11 +351,11 @@ func pointerEncodeFuncOf(_ reflect.Type, c *codec) encodeFunc {
 
 func pointerDecodeFuncOf(t reflect.Type, c *codec) decodeFunc {
 	t = t.Elem()
-	return func(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+	return func(b []byte, p unsafe.Pointer) (int, error) {
 		v := (*unsafe.Pointer)(p)
 		if *v == nil {
 			*v = unsafe.Pointer(reflect.New(t).Pointer())
 		}
-		return c.decode(b, *v, flags)
+		return c.decode(b, *v)
 	}
 }

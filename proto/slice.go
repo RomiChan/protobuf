@@ -32,13 +32,13 @@ func sliceCodecOf(t reflect.Type, f structField, w *walker) *codec {
 func sliceSizeFuncOf(t reflect.Type, r *repeatedField) sizeFunc {
 	elemSize := alignedSize(t.Elem())
 	tagSize := sizeOfVarint(r.wiretag)
-	return func(p unsafe.Pointer, _ flags) int {
+	return func(p unsafe.Pointer) int {
 		n := 0
 
 		if v := (*Slice)(p); v != nil {
 			for i := 0; i < v.Len(); i++ {
 				elem := v.Index(i, elemSize)
-				size := r.codec.size(elem, wantzero)
+				size := r.codec.size(elem)
 				n += tagSize + size
 			}
 		}
@@ -50,13 +50,13 @@ func sliceSizeFuncOf(t reflect.Type, r *repeatedField) sizeFunc {
 func sliceEncodeFuncOf(t reflect.Type, r *repeatedField) encodeFunc {
 	elemSize := alignedSize(t.Elem())
 	tagData := appendVarint(nil, r.wiretag)
-	return func(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
+	return func(b []byte, p unsafe.Pointer) ([]byte, error) {
 		var err error
 		if s := (*Slice)(p); s != nil {
 			for i := 0; i < s.Len(); i++ {
 				elem := s.Index(i, elemSize)
 				b = append(b, tagData...)
-				b, err = r.codec.encode(b, elem, wantzero)
+				b, err = r.codec.encode(b, elem)
 				if err != nil {
 					return b, err
 				}
@@ -69,7 +69,7 @@ func sliceEncodeFuncOf(t reflect.Type, r *repeatedField) encodeFunc {
 func sliceDecodeFuncOf(t reflect.Type, r *repeatedField) decodeFunc {
 	elemType := t.Elem()
 	elemSize := alignedSize(elemType)
-	return func(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+	return func(b []byte, p unsafe.Pointer) (int, error) {
 		s := (*Slice)(p)
 		i := s.Len()
 
@@ -77,7 +77,7 @@ func sliceDecodeFuncOf(t reflect.Type, r *repeatedField) decodeFunc {
 			*s = growSlice(elemType, s)
 		}
 
-		n, err := r.codec.decode(b, s.Index(i, elemSize), noflags)
+		n, err := r.codec.decode(b, s.Index(i, elemSize))
 		if err == nil {
 			s.SetLen(i + 1)
 		}

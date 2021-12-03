@@ -76,7 +76,7 @@ func BenchmarkEncodeSlice(b *testing.B) {
 		S: []int32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 	}
 
-	size := Size(msg)
+	size := Size(&msg)
 	b.SetBytes(int64(size))
 
 	for i := 0; i < b.N; i++ {

@@ -10,28 +10,28 @@ var boolPtrCodec = codec{
 	decode: decodeBoolPtr,
 }
 
-func sizeOfBoolPtr(p unsafe.Pointer, flags flags) int {
+func sizeOfBoolPtr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfBoolRequired(p, flags)
+		return sizeOfBoolRequired(p)
 	}
 	return 0
 }
 
-func encodeBoolPtr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeBoolPtr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeBoolRequired(b, p, flags)
+		return encodeBoolRequired(b, p)
 	}
 	return b, nil
 }
 
-func decodeBoolPtr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeBoolPtr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(bool))
 	}
-	return decodeBool(b, *v, flags)
+	return decodeBool(b, *v)
 }
 
 var stringPtrCodec = codec{
@@ -40,28 +40,28 @@ var stringPtrCodec = codec{
 	decode: decodeStringPtr,
 }
 
-func sizeOfStringPtr(p unsafe.Pointer, flags flags) int {
+func sizeOfStringPtr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfStringRequired(p, flags)
+		return sizeOfStringRequired(p)
 	}
 	return 0
 }
 
-func encodeStringPtr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeStringPtr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeStringRequired(b, p, flags)
+		return encodeStringRequired(b, p)
 	}
 	return b, nil
 }
 
-func decodeStringPtr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeStringPtr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(string))
 	}
-	return decodeString(b, *v, flags)
+	return decodeString(b, *v)
 }
 
 var int32PtrCodec = codec{
@@ -70,28 +70,28 @@ var int32PtrCodec = codec{
 	decode: decodeInt32Ptr,
 }
 
-func sizeOfInt32Ptr(p unsafe.Pointer, flags flags) int {
+func sizeOfInt32Ptr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfInt32Required(p, flags)
+		return sizeOfInt32Required(p)
 	}
 	return 0
 }
 
-func encodeInt32Ptr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeInt32Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeInt32Required(b, p, flags)
+		return encodeInt32Required(b, p)
 	}
 	return b, nil
 }
 
-func decodeInt32Ptr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeInt32Ptr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(int32))
 	}
-	return decodeInt32(b, *v, flags)
+	return decodeInt32(b, *v)
 }
 
 var uint32PtrCodec = codec{
@@ -100,28 +100,28 @@ var uint32PtrCodec = codec{
 	decode: decodeUint32Ptr,
 }
 
-func sizeOfUint32Ptr(p unsafe.Pointer, flags flags) int {
+func sizeOfUint32Ptr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfUint32Required(p, flags)
+		return sizeOfUint32Required(p)
 	}
 	return 0
 }
 
-func encodeUint32Ptr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeUint32Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeUint32Required(b, p, flags)
+		return encodeUint32Required(b, p)
 	}
 	return b, nil
 }
 
-func decodeUint32Ptr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeUint32Ptr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(uint32))
 	}
-	return decodeUint32(b, *v, flags)
+	return decodeUint32(b, *v)
 }
 
 var int64PtrCodec = codec{
@@ -130,28 +130,28 @@ var int64PtrCodec = codec{
 	decode: decodeInt64Ptr,
 }
 
-func sizeOfInt64Ptr(p unsafe.Pointer, flags flags) int {
+func sizeOfInt64Ptr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfInt64Required(p, flags)
+		return sizeOfInt64Required(p)
 	}
 	return 0
 }
 
-func encodeInt64Ptr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeInt64Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeInt64Required(b, p, flags)
+		return encodeInt64Required(b, p)
 	}
 	return b, nil
 }
 
-func decodeInt64Ptr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeInt64Ptr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(int64))
 	}
-	return decodeInt64(b, *v, flags)
+	return decodeInt64(b, *v)
 }
 
 var uint64PtrCodec = codec{
@@ -160,28 +160,28 @@ var uint64PtrCodec = codec{
 	decode: decodeUint64Ptr,
 }
 
-func sizeOfUint64Ptr(p unsafe.Pointer, flags flags) int {
+func sizeOfUint64Ptr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfUint64Required(p, flags)
+		return sizeOfUint64Required(p)
 	}
 	return 0
 }
 
-func encodeUint64Ptr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeUint64Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeUint64Required(b, p, flags)
+		return encodeUint64Required(b, p)
 	}
 	return b, nil
 }
 
-func decodeUint64Ptr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeUint64Ptr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(uint64))
 	}
-	return decodeUint64(b, *v, flags)
+	return decodeUint64(b, *v)
 }
 
 var zigzag32PtrCodec = codec{
@@ -190,28 +190,28 @@ var zigzag32PtrCodec = codec{
 	decode: decodeZigzag32Ptr,
 }
 
-func sizeOfZigzag32Ptr(p unsafe.Pointer, flags flags) int {
+func sizeOfZigzag32Ptr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfZigzag32Required(p, flags)
+		return sizeOfZigzag32Required(p)
 	}
 	return 0
 }
 
-func encodeZigzag32Ptr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeZigzag32Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeZigzag32Required(b, p, flags)
+		return encodeZigzag32Required(b, p)
 	}
 	return b, nil
 }
 
-func decodeZigzag32Ptr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeZigzag32Ptr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(int32))
 	}
-	return decodeZigzag32(b, *v, flags)
+	return decodeZigzag32(b, *v)
 }
 
 var zigzag64PtrCodec = codec{
@@ -220,28 +220,28 @@ var zigzag64PtrCodec = codec{
 	decode: decodeZigzag64Ptr,
 }
 
-func sizeOfZigzag64Ptr(p unsafe.Pointer, flags flags) int {
+func sizeOfZigzag64Ptr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfZigzag64Required(p, flags)
+		return sizeOfZigzag64Required(p)
 	}
 	return 0
 }
 
-func encodeZigzag64Ptr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeZigzag64Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeZigzag64Required(b, p, flags)
+		return encodeZigzag64Required(b, p)
 	}
 	return b, nil
 }
 
-func decodeZigzag64Ptr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeZigzag64Ptr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(int64))
 	}
-	return decodeZigzag64(b, *v, flags)
+	return decodeZigzag64(b, *v)
 }
 
 var fixed32PtrCodec = codec{
@@ -250,28 +250,28 @@ var fixed32PtrCodec = codec{
 	decode: decodeFixed32Ptr,
 }
 
-func sizeOfFixed32Ptr(p unsafe.Pointer, flags flags) int {
+func sizeOfFixed32Ptr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfFixed32Required(p, flags)
+		return sizeOfFixed32Required(p)
 	}
 	return 0
 }
 
-func encodeFixed32Ptr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeFixed32Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeFixed32Required(b, p, flags)
+		return encodeFixed32Required(b, p)
 	}
 	return b, nil
 }
 
-func decodeFixed32Ptr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeFixed32Ptr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(uint32))
 	}
-	return decodeFixed32(b, *v, flags)
+	return decodeFixed32(b, *v)
 }
 
 var fixed64PtrCodec = codec{
@@ -280,28 +280,28 @@ var fixed64PtrCodec = codec{
 	decode: decodeFixed64Ptr,
 }
 
-func sizeOfFixed64Ptr(p unsafe.Pointer, flags flags) int {
+func sizeOfFixed64Ptr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfFixed64Required(p, flags)
+		return sizeOfFixed64Required(p)
 	}
 	return 0
 }
 
-func encodeFixed64Ptr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeFixed64Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeFixed64Required(b, p, flags)
+		return encodeFixed64Required(b, p)
 	}
 	return b, nil
 }
 
-func decodeFixed64Ptr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeFixed64Ptr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(uint64))
 	}
-	return decodeFixed64(b, *v, flags)
+	return decodeFixed64(b, *v)
 }
 
 var float32PtrCodec = codec{
@@ -310,28 +310,28 @@ var float32PtrCodec = codec{
 	decode: decodeFloat32Ptr,
 }
 
-func sizeOfFloat32Ptr(p unsafe.Pointer, flags flags) int {
+func sizeOfFloat32Ptr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfFloat32Required(p, flags)
+		return sizeOfFloat32Required(p)
 	}
 	return 0
 }
 
-func encodeFloat32Ptr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeFloat32Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeFloat32Required(b, p, flags)
+		return encodeFloat32Required(b, p)
 	}
 	return b, nil
 }
 
-func decodeFloat32Ptr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeFloat32Ptr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(float32))
 	}
-	return decodeFloat32(b, *v, flags)
+	return decodeFloat32(b, *v)
 }
 
 var float64PtrCodec = codec{
@@ -340,26 +340,26 @@ var float64PtrCodec = codec{
 	decode: decodeFloat64Ptr,
 }
 
-func sizeOfFloat64Ptr(p unsafe.Pointer, flags flags) int {
+func sizeOfFloat64Ptr(p unsafe.Pointer) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfFloat64Required(p, flags)
+		return sizeOfFloat64Required(p)
 	}
 	return 0
 }
 
-func encodeFloat64Ptr(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+func encodeFloat64Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeFloat64Required(b, p, flags)
+		return encodeFloat64Required(b, p)
 	}
 	return b, nil
 }
 
-func decodeFloat64Ptr(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+func decodeFloat64Ptr(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*unsafe.Pointer)(p)
 	if *v == nil {
 		*v = unsafe.Pointer(new(float64))
 	}
-	return decodeFloat64(b, *v, flags)
+	return decodeFloat64(b, *v)
 }

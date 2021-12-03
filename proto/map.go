@@ -37,7 +37,7 @@ func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 		keyTagSize = 1 // sizeOfTag(1, f.keyCodec.wire)
 		valTagSize = 1 // sizeOfTag(2, f.valCodec.wire)
 	)
-	return func(p unsafe.Pointer, flags flags) int {
+	return func(p unsafe.Pointer) int {
 		if p == nil {
 			return 0
 		}
@@ -49,8 +49,8 @@ func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 		defer m.Done()
 
 		for m.Init(pointer(t), p); m.HasNext(); m.Next() {
-			keySize := f.keyCodec.size(m.Key(), wantzero)
-			valSize := f.valCodec.size(m.Value(), wantzero)
+			keySize := f.keyCodec.size(m.Key())
+			valSize := f.valCodec.size(m.Value())
 
 			if keySize > 0 {
 				n += keyTagSize + keySize
@@ -81,7 +81,7 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 	mapTag := appendVarint(nil, f.wiretag)
 	zero := append(mapTag, 0)
 
-	return func(b []byte, p unsafe.Pointer, flags flags) ([]byte, error) {
+	return func(b []byte, p unsafe.Pointer) ([]byte, error) {
 		if p == nil {
 			return b, nil
 		}
@@ -97,8 +97,8 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 			key := m.Key()
 			val := m.Value()
 
-			keySize := f.keyCodec.size(key, wantzero)
-			valSize := f.valCodec.size(val, wantzero)
+			keySize := f.keyCodec.size(key)
+			valSize := f.valCodec.size(val)
 			elemSize := keySize + valSize
 
 			if keySize > 0 {
@@ -125,7 +125,7 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 					b = appendVarint(b, uint64(keySize))
 				}
 
-				b, err = f.keyCodec.encode(b, key, wantzero)
+				b, err = f.keyCodec.encode(b, key)
 				if err != nil {
 					return b, err
 				}
@@ -138,7 +138,7 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 					b = appendVarint(b, uint64(valSize))
 				}
 
-				b, err = f.valCodec.encode(b, val, wantzero)
+				b, err = f.valCodec.encode(b, val)
 				if err != nil {
 					return b, err
 				}
@@ -173,7 +173,7 @@ func mapDecodeFuncOf(t reflect.Type, m *mapField, w *walker) decodeFunc {
 	stype := pointer(structType)
 	vtype := pointer(valueType)
 
-	return func(b []byte, p unsafe.Pointer, _ flags) (int, error) {
+	return func(b []byte, p unsafe.Pointer) (int, error) {
 		m := (*unsafe.Pointer)(p)
 		if *m == nil {
 			*m = MakeMap(mtype, 10)
@@ -187,7 +187,7 @@ func mapDecodeFuncOf(t reflect.Type, m *mapField, w *walker) decodeFunc {
 			s = unsafe.Pointer(reflect.New(structType).Pointer())
 		}
 
-		n, err := info.decode(b, s, noflags)
+		n, err := info.decode(b, s)
 		if err == nil {
 			v := MapAssign(mtype, *m, s)
 			Assign(vtype, v, unsafe.Pointer(uintptr(s)+valueOffset))
