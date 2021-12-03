@@ -19,7 +19,9 @@ func (w *walker) codec(t reflect.Type, conf *walkerConfig) *codec {
 	if c, ok := w.codecs[t]; ok {
 		return c
 	}
-
+	if conf.required {
+		return w.required(t, conf)
+	}
 	switch t.Kind() {
 	case reflect.Bool:
 		return &boolCodec
@@ -95,17 +97,6 @@ func baseTypeOf(t reflect.Type) reflect.Type {
 	return t
 }
 
-func fixPtrCodec(t reflect.Type, c *codec) *codec {
-	if t.Kind() == reflect.Ptr {
-		p := new(codec)
-		p.size = pointerSizeFuncOf(t, c)
-		p.encode = pointerEncodeFuncOf(t, c)
-		p.decode = pointerDecodeFuncOf(t, c)
-		c = p
-	}
-	return c
-}
-
 func (w *walker) structInfo(t reflect.Type) *structInfo {
 	if i, ok := w.infos[t]; ok {
 		return i
@@ -142,16 +133,32 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 		case fixed32:
 			switch baseKindOf(f.Type) {
 			case reflect.Uint32:
-				field.codec = fixPtrCodec(f.Type, &fixed32Codec)
+				if f.Type.Kind() == reflect.Ptr {
+					field.codec = &fixed32PtrCodec
+				} else {
+					field.codec = &fixed32Codec
+				}
 			case reflect.Float32:
-				field.codec = fixPtrCodec(f.Type, &float32Codec)
+				if f.Type.Kind() == reflect.Ptr {
+					field.codec = &float32PtrCodec
+				} else {
+					field.codec = &float32Codec
+				}
 			}
 		case fixed64:
 			switch baseKindOf(f.Type) {
 			case reflect.Uint64:
-				field.codec = fixPtrCodec(f.Type, &fixed64Codec)
+				if f.Type.Kind() == reflect.Ptr {
+					field.codec = &fixed64PtrCodec
+				} else {
+					field.codec = &fixed64Codec
+				}
 			case reflect.Float64:
-				field.codec = fixPtrCodec(f.Type, &float64Codec)
+				if f.Type.Kind() == reflect.Ptr {
+					field.codec = &float64PtrCodec
+				} else {
+					field.codec = &float64Codec
+				}
 			}
 		}
 
@@ -236,6 +243,24 @@ func (w *walker) pointer(t reflect.Type, conf *walkerConfig) *codec {
 	switch t.Elem().Kind() {
 	case reflect.Bool:
 		return &boolPtrCodec
+	case reflect.Int32:
+		if conf.zigzag {
+			return &zigzag32PtrCodec
+		}
+		return &int32PtrCodec
+	case reflect.Int64:
+		if conf.zigzag {
+			return &zigzag64PtrCodec
+		}
+		return &int64PtrCodec
+	case reflect.Uint32:
+		return &uint32PtrCodec
+	case reflect.Uint64:
+		return &uint64PtrCodec
+	case reflect.Float32:
+		return &float32PtrCodec
+	case reflect.Float64:
+		return &float64PtrCodec
 	case reflect.String:
 		return &stringPtrCodec
 	}
@@ -247,6 +272,49 @@ func (w *walker) pointer(t reflect.Type, conf *walkerConfig) *codec {
 	p.encode = pointerEncodeFuncOf(t, c)
 	p.decode = pointerDecodeFuncOf(t, c)
 	return p
+}
+
+func (w *walker) required(t reflect.Type, conf *walkerConfig) *codec {
+	if c, ok := w.codecs[t]; ok {
+		return c
+	}
+
+	switch t.Kind() {
+	case reflect.Bool:
+		return &boolRequiredCodec
+	case reflect.Int32:
+		if conf.zigzag {
+			return &zigzag32RequiredCodec
+		}
+		return &int32RequiredCodec
+	case reflect.Int64:
+		if conf.zigzag {
+			return &zigzag64RequiredCodec
+		}
+		return &int64RequiredCodec
+	case reflect.Uint32:
+		return &uint32RequiredCodec
+	case reflect.Uint64:
+		return &uint64RequiredCodec
+	case reflect.Float32:
+		return &float32RequiredCodec
+	case reflect.Float64:
+		return &float64RequiredCodec
+	case reflect.String:
+		return &stringRequiredCodec
+	case reflect.Slice:
+		elem := t.Elem()
+		switch elem.Kind() {
+		case reflect.Uint8:
+			return &bytesCodec
+		}
+	case reflect.Struct:
+		return w.structCodec(t)
+	case reflect.Ptr:
+		return w.pointer(t, conf)
+	}
+
+	panic("unsupported type: " + t.String())
 }
 
 func pointerSizeFuncOf(_ reflect.Type, c *codec) sizeFunc {

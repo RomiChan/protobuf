@@ -7,6 +7,9 @@ import (
 	"unsafe"
 )
 
+//go:generate go run ./gen/pointer
+//go:generate go run ./gen/required
+
 func Size(v interface{}) int {
 	t, p := inspect(v)
 	if t.Kind() != reflect.Ptr {
