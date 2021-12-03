@@ -8,10 +8,7 @@ import (
 	"unsafe"
 )
 
-const (
-	embedded = 1 << 0
-	repeated = 1 << 1
-)
+const embedded = 1 << 0
 
 type structInfo struct {
 	fields     []*structField
@@ -42,10 +39,6 @@ func (f *structField) embedded() bool {
 	return (f.flags & embedded) != 0
 }
 
-func (f *structField) repeated() bool {
-	return (f.flags & repeated) != 0
-}
-
 func (f *structField) pointer(p unsafe.Pointer) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + f.offset)
 }
@@ -54,20 +47,9 @@ func (info *structInfo) size(p unsafe.Pointer) int {
 	if p == nil {
 		return 0
 	}
-
 	n := 0
 	for _, f := range info.fields {
-		if f.repeated() {
-			size := f.codec.size(f.pointer(p))
-			if size > 0 {
-				n += size
-			}
-			continue
-		}
-		size := f.codec.size(f.pointer(p))
-		if size > 0 {
-			n += int(f.tagsize) + size
-		}
+		n += f.codec.size(f.pointer(p), f)
 	}
 	return n
 }
@@ -76,24 +58,11 @@ func (info *structInfo) encode(b []byte, p unsafe.Pointer) ([]byte, error) {
 	if p == nil {
 		return b, nil
 	}
-
 	var err error
 	for _, f := range info.fields {
-		if f.repeated() {
-			b, err = f.codec.encode(b, f.pointer(p))
-			if err != nil {
-				return b, err
-			}
-			continue
-		}
-		elem := f.pointer(p)
-		size := f.codec.size(elem)
-		if size > 0 {
-			b = appendVarint(b, f.wiretag)
-			b, err = f.codec.encode(b, elem)
-			if err != nil {
-				return b, err
-			}
+		b, err = f.codec.encode(b, f.pointer(p), f)
+		if err != nil {
+			return b, err
 		}
 	}
 	return b, nil

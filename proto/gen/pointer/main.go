@@ -21,18 +21,18 @@ var {{.Codec}}PtrCodec = codec{
 	decode: decode{{.Name}}Ptr,
 }
 
-func sizeOf{{.Name}}Ptr(p unsafe.Pointer) int {
+func sizeOf{{.Name}}Ptr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOf{{.Name}}Required(p)
+		return sizeOf{{.Name}}Required(p, f)
 	}
 	return 0
 }
 
-func encode{{.Name}}Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encode{{.Name}}Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encode{{.Name}}Required(b, p)
+		return encode{{.Name}}Required(b, p, f)
 	}
 	return b, nil
 }

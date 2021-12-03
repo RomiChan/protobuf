@@ -10,18 +10,18 @@ var boolPtrCodec = codec{
 	decode: decodeBoolPtr,
 }
 
-func sizeOfBoolPtr(p unsafe.Pointer) int {
+func sizeOfBoolPtr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfBoolRequired(p)
+		return sizeOfBoolRequired(p, f)
 	}
 	return 0
 }
 
-func encodeBoolPtr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeBoolPtr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeBoolRequired(b, p)
+		return encodeBoolRequired(b, p, f)
 	}
 	return b, nil
 }
@@ -40,18 +40,18 @@ var stringPtrCodec = codec{
 	decode: decodeStringPtr,
 }
 
-func sizeOfStringPtr(p unsafe.Pointer) int {
+func sizeOfStringPtr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfStringRequired(p)
+		return sizeOfStringRequired(p, f)
 	}
 	return 0
 }
 
-func encodeStringPtr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeStringPtr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeStringRequired(b, p)
+		return encodeStringRequired(b, p, f)
 	}
 	return b, nil
 }
@@ -70,18 +70,18 @@ var int32PtrCodec = codec{
 	decode: decodeInt32Ptr,
 }
 
-func sizeOfInt32Ptr(p unsafe.Pointer) int {
+func sizeOfInt32Ptr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfInt32Required(p)
+		return sizeOfInt32Required(p, f)
 	}
 	return 0
 }
 
-func encodeInt32Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeInt32Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeInt32Required(b, p)
+		return encodeInt32Required(b, p, f)
 	}
 	return b, nil
 }
@@ -100,18 +100,18 @@ var uint32PtrCodec = codec{
 	decode: decodeUint32Ptr,
 }
 
-func sizeOfUint32Ptr(p unsafe.Pointer) int {
+func sizeOfUint32Ptr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfUint32Required(p)
+		return sizeOfUint32Required(p, f)
 	}
 	return 0
 }
 
-func encodeUint32Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeUint32Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeUint32Required(b, p)
+		return encodeUint32Required(b, p, f)
 	}
 	return b, nil
 }
@@ -130,18 +130,18 @@ var int64PtrCodec = codec{
 	decode: decodeInt64Ptr,
 }
 
-func sizeOfInt64Ptr(p unsafe.Pointer) int {
+func sizeOfInt64Ptr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfInt64Required(p)
+		return sizeOfInt64Required(p, f)
 	}
 	return 0
 }
 
-func encodeInt64Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeInt64Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeInt64Required(b, p)
+		return encodeInt64Required(b, p, f)
 	}
 	return b, nil
 }
@@ -160,18 +160,18 @@ var uint64PtrCodec = codec{
 	decode: decodeUint64Ptr,
 }
 
-func sizeOfUint64Ptr(p unsafe.Pointer) int {
+func sizeOfUint64Ptr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfUint64Required(p)
+		return sizeOfUint64Required(p, f)
 	}
 	return 0
 }
 
-func encodeUint64Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeUint64Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeUint64Required(b, p)
+		return encodeUint64Required(b, p, f)
 	}
 	return b, nil
 }
@@ -190,18 +190,18 @@ var zigzag32PtrCodec = codec{
 	decode: decodeZigzag32Ptr,
 }
 
-func sizeOfZigzag32Ptr(p unsafe.Pointer) int {
+func sizeOfZigzag32Ptr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfZigzag32Required(p)
+		return sizeOfZigzag32Required(p, f)
 	}
 	return 0
 }
 
-func encodeZigzag32Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeZigzag32Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeZigzag32Required(b, p)
+		return encodeZigzag32Required(b, p, f)
 	}
 	return b, nil
 }
@@ -220,18 +220,18 @@ var zigzag64PtrCodec = codec{
 	decode: decodeZigzag64Ptr,
 }
 
-func sizeOfZigzag64Ptr(p unsafe.Pointer) int {
+func sizeOfZigzag64Ptr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfZigzag64Required(p)
+		return sizeOfZigzag64Required(p, f)
 	}
 	return 0
 }
 
-func encodeZigzag64Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeZigzag64Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeZigzag64Required(b, p)
+		return encodeZigzag64Required(b, p, f)
 	}
 	return b, nil
 }
@@ -250,18 +250,18 @@ var fixed32PtrCodec = codec{
 	decode: decodeFixed32Ptr,
 }
 
-func sizeOfFixed32Ptr(p unsafe.Pointer) int {
+func sizeOfFixed32Ptr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfFixed32Required(p)
+		return sizeOfFixed32Required(p, f)
 	}
 	return 0
 }
 
-func encodeFixed32Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeFixed32Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeFixed32Required(b, p)
+		return encodeFixed32Required(b, p, f)
 	}
 	return b, nil
 }
@@ -280,18 +280,18 @@ var fixed64PtrCodec = codec{
 	decode: decodeFixed64Ptr,
 }
 
-func sizeOfFixed64Ptr(p unsafe.Pointer) int {
+func sizeOfFixed64Ptr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfFixed64Required(p)
+		return sizeOfFixed64Required(p, f)
 	}
 	return 0
 }
 
-func encodeFixed64Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeFixed64Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeFixed64Required(b, p)
+		return encodeFixed64Required(b, p, f)
 	}
 	return b, nil
 }
@@ -310,18 +310,18 @@ var float32PtrCodec = codec{
 	decode: decodeFloat32Ptr,
 }
 
-func sizeOfFloat32Ptr(p unsafe.Pointer) int {
+func sizeOfFloat32Ptr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfFloat32Required(p)
+		return sizeOfFloat32Required(p, f)
 	}
 	return 0
 }
 
-func encodeFloat32Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeFloat32Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeFloat32Required(b, p)
+		return encodeFloat32Required(b, p, f)
 	}
 	return b, nil
 }
@@ -340,18 +340,18 @@ var float64PtrCodec = codec{
 	decode: decodeFloat64Ptr,
 }
 
-func sizeOfFloat64Ptr(p unsafe.Pointer) int {
+func sizeOfFloat64Ptr(p unsafe.Pointer, f *structField) int {
 	p = deref(p)
 	if p != nil {
-		return sizeOfFloat64Required(p)
+		return sizeOfFloat64Required(p, f)
 	}
 	return 0
 }
 
-func encodeFloat64Ptr(b []byte, p unsafe.Pointer) ([]byte, error) {
+func encodeFloat64Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	p = deref(p)
 	if p != nil {
-		return encodeFloat64Required(b, p)
+		return encodeFloat64Required(b, p, f)
 	}
 	return b, nil
 }

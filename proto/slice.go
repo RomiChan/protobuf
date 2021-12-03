@@ -7,56 +7,40 @@ import (
 	. "github.com/RomiChan/protobuf/internal/runtime_reflect"
 )
 
-type repeatedField struct {
-	codec    *codec
-	wiretag  uint64
-	embedded bool
-}
-
 func sliceCodecOf(t reflect.Type, f structField, w *walker) *codec {
 	s := new(codec)
 	w.codecs[t] = s
 
-	r := &repeatedField{
-		codec:    f.codec,
-		wiretag:  f.wiretag,
-		embedded: f.embedded(),
-	}
-
-	s.size = sliceSizeFuncOf(t, r)
-	s.encode = sliceEncodeFuncOf(t, r)
-	s.decode = sliceDecodeFuncOf(t, r)
+	s.size = sliceSizeFuncOf(t, &f)
+	s.encode = sliceEncodeFuncOf(t, &f)
+	s.decode = sliceDecodeFuncOf(t, &f)
 	return s
 }
 
-func sliceSizeFuncOf(t reflect.Type, r *repeatedField) sizeFunc {
+func sliceSizeFuncOf(t reflect.Type, f *structField) sizeFunc {
 	elemSize := alignedSize(t.Elem())
-	tagSize := sizeOfVarint(r.wiretag)
-	return func(p unsafe.Pointer) int {
+	codec := f.codec
+	return func(p unsafe.Pointer, sf *structField) int {
 		n := 0
-
 		if v := (*Slice)(p); v != nil {
 			for i := 0; i < v.Len(); i++ {
 				elem := v.Index(i, elemSize)
-				size := r.codec.size(elem)
-				n += tagSize + size
+				n += codec.size(elem, sf)
 			}
 		}
-
 		return n
 	}
 }
 
-func sliceEncodeFuncOf(t reflect.Type, r *repeatedField) encodeFunc {
+func sliceEncodeFuncOf(t reflect.Type, f *structField) encodeFunc {
 	elemSize := alignedSize(t.Elem())
-	tagData := appendVarint(nil, r.wiretag)
-	return func(b []byte, p unsafe.Pointer) ([]byte, error) {
+	codec := f.codec
+	return func(b []byte, p unsafe.Pointer, sf *structField) ([]byte, error) {
 		var err error
 		if s := (*Slice)(p); s != nil {
 			for i := 0; i < s.Len(); i++ {
 				elem := s.Index(i, elemSize)
-				b = append(b, tagData...)
-				b, err = r.codec.encode(b, elem)
+				b, err = codec.encode(b, elem, sf)
 				if err != nil {
 					return b, err
 				}
@@ -66,7 +50,7 @@ func sliceEncodeFuncOf(t reflect.Type, r *repeatedField) encodeFunc {
 	}
 }
 
-func sliceDecodeFuncOf(t reflect.Type, r *repeatedField) decodeFunc {
+func sliceDecodeFuncOf(t reflect.Type, f *structField) decodeFunc {
 	elemType := t.Elem()
 	elemSize := alignedSize(elemType)
 	return func(b []byte, p unsafe.Pointer) (int, error) {
@@ -77,7 +61,7 @@ func sliceDecodeFuncOf(t reflect.Type, r *repeatedField) decodeFunc {
 			*s = growSlice(elemType, s)
 		}
 
-		n, err := r.codec.decode(b, s.Index(i, elemSize))
+		n, err := f.codec.decode(b, s.Index(i, elemSize))
 		if err == nil {
 			s.SetLen(i + 1)
 		}

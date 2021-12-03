@@ -8,7 +8,7 @@ func encodeZigZag64(v int64) uint64 {
 	return (uint64(v) << 1) ^ uint64(v>>63)
 }
 
-type encodeFunc = func([]byte, unsafe.Pointer) ([]byte, error)
+type encodeFunc = func([]byte, unsafe.Pointer, *structField) ([]byte, error)
 
 func appendVarint(b []byte, v uint64) []byte {
 	switch {

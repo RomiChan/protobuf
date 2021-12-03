@@ -12,13 +12,9 @@ import (
 const zeroSize = 1 // sizeOfVarint(0)
 
 type mapField struct {
-	wiretag    uint64
-	keyFlags   uint8
-	valFlags   uint8
-	keyWireTag uint64
-	keyCodec   *codec
-	valWireTag uint64
-	valCodec   *codec
+	wiretag  uint64
+	keyField *structField
+	valField *structField
 }
 
 func (w *walker) mapCodec(t reflect.Type, f *mapField) *codec {
@@ -33,11 +29,10 @@ func (w *walker) mapCodec(t reflect.Type, f *mapField) *codec {
 
 func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 	mapTagSize := sizeOfVarint(f.wiretag)
-	const (
-		keyTagSize = 1 // sizeOfTag(1, f.keyCodec.wire)
-		valTagSize = 1 // sizeOfTag(2, f.valCodec.wire)
-	)
-	return func(p unsafe.Pointer) int {
+	keyCodec := f.keyField.codec
+	valCodec := f.valField.codec
+
+	return func(p unsafe.Pointer, sf *structField) int {
 		if p == nil {
 			return 0
 		}
@@ -49,30 +44,13 @@ func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 		defer m.Done()
 
 		for m.Init(pointer(t), p); m.HasNext(); m.Next() {
-			keySize := f.keyCodec.size(m.Key())
-			valSize := f.valCodec.size(m.Value())
-
-			if keySize > 0 {
-				n += keyTagSize + keySize
-				if (f.keyFlags & embedded) != 0 {
-					n += sizeOfVarint(uint64(keySize))
-				}
-			}
-
-			if valSize > 0 {
-				n += valTagSize + valSize
-				if (f.valFlags & embedded) != 0 {
-					n += sizeOfVarint(uint64(valSize))
-				}
-			}
-
-			n += mapTagSize + sizeOfVarint(uint64(keySize+valSize))
+			keySize := keyCodec.size(m.Key(), f.keyField)
+			valSize := valCodec.size(m.Value(), f.valField)
+			n += mapTagSize + sizeOfVarint(uint64(keySize+valSize)) + keySize + valSize
 		}
-
 		if n == 0 {
 			n = mapTagSize + zeroSize
 		}
-
 		return n
 	}
 }
@@ -80,8 +58,10 @@ func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 	mapTag := appendVarint(nil, f.wiretag)
 	zero := append(mapTag, 0)
+	keyCodec := f.keyField.codec
+	valCodec := f.valField.codec
 
-	return func(b []byte, p unsafe.Pointer) ([]byte, error) {
+	return func(b []byte, p unsafe.Pointer, sf *structField) ([]byte, error) {
 		if p == nil {
 			return b, nil
 		}
@@ -97,51 +77,19 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 			key := m.Key()
 			val := m.Value()
 
-			keySize := f.keyCodec.size(key)
-			valSize := f.valCodec.size(val)
+			keySize := keyCodec.size(key, f.keyField)
+			valSize := keyCodec.size(val, f.valField)
 			elemSize := keySize + valSize
-
-			if keySize > 0 {
-				elemSize += 1 // keyTagSize
-				if (f.keyFlags & embedded) != 0 {
-					elemSize += sizeOfVarint(uint64(keySize))
-				}
-			}
-
-			if valSize > 0 {
-				elemSize += 1 // valTagSize
-				if (f.valFlags & embedded) != 0 {
-					elemSize += sizeOfVarint(uint64(valSize))
-				}
-			}
 
 			b = append(b, mapTag...)
 			b = appendVarint(b, uint64(elemSize))
-
-			if keySize > 0 {
-				b = appendVarint(b, f.keyWireTag)
-
-				if (f.keyFlags & embedded) != 0 {
-					b = appendVarint(b, uint64(keySize))
-				}
-
-				b, err = f.keyCodec.encode(b, key)
-				if err != nil {
-					return b, err
-				}
+			b, err = keyCodec.encode(b, key, f.keyField)
+			if err != nil {
+				return b, err
 			}
-
-			if valSize > 0 {
-				b = appendVarint(b, f.valWireTag)
-
-				if (f.valFlags & embedded) != 0 {
-					b = appendVarint(b, uint64(valSize))
-				}
-
-				b, err = f.valCodec.encode(b, val)
-				if err != nil {
-					return b, err
-				}
+			b, err = valCodec.encode(b, val, f.valField)
+			if err != nil {
+				return b, err
 			}
 		}
 
@@ -158,8 +106,8 @@ func formatWireTag(wire uint64) reflect.StructTag {
 
 func mapDecodeFuncOf(t reflect.Type, m *mapField, w *walker) decodeFunc {
 	structType := reflect.StructOf([]reflect.StructField{
-		{Name: "Key", Type: t.Key(), Tag: formatWireTag(m.keyWireTag)},
-		{Name: "Elem", Type: t.Elem(), Tag: formatWireTag(m.valWireTag)},
+		{Name: "Key", Type: t.Key(), Tag: formatWireTag(m.keyField.wiretag)},
+		{Name: "Elem", Type: t.Elem(), Tag: formatWireTag(m.valField.wiretag)},
 	})
 
 	info := w.structInfo(structType)

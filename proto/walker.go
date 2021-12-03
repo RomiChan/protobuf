@@ -68,18 +68,19 @@ func (w *walker) structCodec(t reflect.Type) *codec {
 	w.codecs[t] = c
 	elem := t.Elem()
 	info := w.structInfo(elem)
-	c.size = func(p unsafe.Pointer) int {
+	c.size = func(p unsafe.Pointer, f *structField) int {
 		p = deref(p)
 		if p != nil {
-			n := info.size(p)
+			n := info.size(p) + int(f.tagsize)
 			n += sizeOfVarint(uint64(n))
 			return n
 		}
 		return 0
 	}
-	c.encode = func(b []byte, p unsafe.Pointer) ([]byte, error) {
+	c.encode = func(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 		p = deref(p)
 		if p != nil {
+			b = appendVarint(b, f.wiretag)
 			n := info.size(p)
 			b = appendVarint(b, uint64(n))
 			return info.encode(b, p)
@@ -136,9 +137,6 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 			panic(err)
 		}
 		field.wiretag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
-		if t.repeated {
-			field.flags |= repeated
-		}
 		switch t.wireType {
 		case fixed32:
 			switch baseKindOf(f.Type) {
@@ -192,7 +190,6 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 						field.flags |= embedded
 					}
 					conf.required = true
-					field.flags |= repeated
 					field.codec = w.codec(elem, conf)
 					field.codec = sliceCodecOf(f.Type, field, w)
 				}
@@ -203,29 +200,32 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 				m := &mapField{wiretag: field.wiretag}
 
 				t, _ := parseStructTag(f.Tag.Get("protobuf_key"))
-				m.keyWireTag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
+				keyField := &structField{wiretag: uint64(t.fieldNumber)<<3 | uint64(t.wireType)}
+				keyField.tagsize = uint8(sizeOfVarint(keyField.wiretag))
 				conf.zigzag = t.zigzag
-				m.keyCodec = w.codec(key, conf)
+				keyField.codec = w.codec(key, conf)
 
 				t, _ = parseStructTag(f.Tag.Get("protobuf_val"))
-				m.valWireTag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
+				valFiled := &structField{wiretag: uint64(t.fieldNumber)<<3 | uint64(t.wireType)}
+				valFiled.tagsize = uint8(sizeOfVarint(valFiled.wiretag))
 				conf.zigzag = t.zigzag
-				m.valCodec = w.codec(val, conf)
+				valFiled.codec = w.codec(val, conf)
 
+				m.keyField = keyField
+				m.valField = valFiled
 				if baseKindOf(key) == reflect.Struct {
-					m.keyFlags |= embedded
+					m.keyField.flags |= embedded
 				}
 				if baseKindOf(val) == reflect.Struct {
-					m.valFlags |= embedded
+					m.valField.flags |= embedded
 				}
-				field.flags |= embedded | repeated
+				field.flags |= embedded
 				field.codec = w.mapCodec(f.Type, m)
 
 			default:
 				field.codec = w.codec(f.Type, conf)
 			}
 		}
-
 		field.tagsize = uint8(sizeOfVarint(field.wiretag))
 		fields = append(fields, &field)
 	}
@@ -330,20 +330,20 @@ func (w *walker) required(t reflect.Type, conf *walkerConfig) *codec {
 }
 
 func pointerSizeFuncOf(_ reflect.Type, c *codec) sizeFunc {
-	return func(p unsafe.Pointer) int {
+	return func(p unsafe.Pointer, f *structField) int {
 		if p != nil {
 			p = *(*unsafe.Pointer)(p)
-			return c.size(p)
+			return c.size(p, f)
 		}
 		return 0
 	}
 }
 
 func pointerEncodeFuncOf(_ reflect.Type, c *codec) encodeFunc {
-	return func(b []byte, p unsafe.Pointer) ([]byte, error) {
+	return func(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 		if p != nil {
 			p = deref(p)
-			return c.encode(b, p)
+			return c.encode(b, p, f)
 		}
 		return b, nil
 	}
