@@ -124,11 +124,10 @@ func TestMarshalUnmarshal(t *testing.T) {
 		&struct {
 			S []string `protobuf:"bytes,1,rep"`
 		}{S: []string{"A", "B", "C"}},
-		/* fixme(wdvxdr)
 		&struct {
-			K []key `protobuf:"bytes,1,opt"`
+			K []*key `protobuf:"bytes,1,opt"`
 		}{
-			K: []key{
+			K: []*key{
 				{Hi: 0, Lo: 0},
 				{Hi: 0, Lo: 1},
 				{Hi: 0, Lo: 2},
@@ -136,7 +135,6 @@ func TestMarshalUnmarshal(t *testing.T) {
 				{Hi: 0, Lo: 4},
 			},
 		},
-		*/
 	}
 
 	for _, v := range values {
@@ -195,8 +193,8 @@ func TestProto2(t *testing.T) {
 			Sint32Val:  Int32(7),
 			Sint64Val:  Int64(8),
 		},
-		{ // FIXME(wdvxdr)
-			// Nested: &testproto.Proto2_NestedMessage{},
+		{
+			Nested: &testproto.Proto2_NestedMessage{},
 		},
 		{
 			Nested: &testproto.Proto2_NestedMessage{

@@ -66,23 +66,33 @@ func (w *walker) codec(t reflect.Type, conf *walkerConfig) *codec {
 func (w *walker) structCodec(t reflect.Type) *codec {
 	c := new(codec)
 	w.codecs[t] = c
-
-	info := w.structInfo(t)
+	elem := t.Elem()
+	info := w.structInfo(elem)
 	c.size = func(p unsafe.Pointer, f flags) int {
-		n := info.size(p, f)
-		if n > 0 {
+		p = deref(p)
+		if p != nil {
+			n := info.size(p, f)
 			n += sizeOfVarint(uint64(n))
+			return n
 		}
-		return n
+		return 0
 	}
 	c.encode = func(b []byte, p unsafe.Pointer, f flags) ([]byte, error) {
-		if n := info.size(p, f); n > 0 {
+		p = deref(p)
+		if p != nil {
+			n := info.size(p, f)
 			b = appendVarint(b, uint64(n))
 			return info.encode(b, p, f)
 		}
 		return b, nil
 	}
-	c.decode = info.decode
+	c.decode = func(b []byte, p unsafe.Pointer, flags flags) (int, error) {
+		v := (*unsafe.Pointer)(p)
+		if *v == nil {
+			*v = unsafe.Pointer(reflect.New(elem).Pointer())
+		}
+		return info.decode(b, *v, flags)
+	}
 	return c
 }
 
@@ -263,6 +273,8 @@ func (w *walker) pointer(t reflect.Type, conf *walkerConfig) *codec {
 		return &float64PtrCodec
 	case reflect.String:
 		return &stringPtrCodec
+	case reflect.Struct:
+		return w.structCodec(t)
 	}
 	// common value
 	p := new(codec)
@@ -309,7 +321,7 @@ func (w *walker) required(t reflect.Type, conf *walkerConfig) *codec {
 			return &bytesCodec
 		}
 	case reflect.Struct:
-		return w.structCodec(t)
+		panic("nested message must be pointer:" + t.String())
 	case reflect.Ptr:
 		return w.pointer(t, conf)
 	}

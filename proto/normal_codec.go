@@ -368,7 +368,6 @@ func encodeZigzag64(b []byte, p unsafe.Pointer, _ flags) ([]byte, error) {
 
 func decodeZigzag64(b []byte, p unsafe.Pointer, _ flags) (int, error) {
 	v, n, err := decodeVarint(b)
-	println("decode zigzag 64", v)
 	*(*int64)(p) = decodeZigZag64(v)
 	return n, err
 }
