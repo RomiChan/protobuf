@@ -29,12 +29,12 @@ func sizeOf{{.Name}}Ptr(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encode{{.Name}}Ptr(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
+func encode{{.Name}}Ptr(b []byte, p unsafe.Pointer, f *structField) []byte {
 	p = deref(p)
 	if p != nil {
 		return encode{{.Name}}Required(b, p, f)
 	}
-	return b, nil
+	return b
 }
 
 func decode{{.Name}}Ptr(b []byte, p unsafe.Pointer) (int, error) {

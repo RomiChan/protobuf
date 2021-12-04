@@ -35,18 +35,14 @@ func sliceSizeFuncOf(t reflect.Type, f *structField) sizeFunc {
 func sliceEncodeFuncOf(t reflect.Type, f *structField) encodeFunc {
 	elemSize := alignedSize(t.Elem())
 	codec := f.codec
-	return func(b []byte, p unsafe.Pointer, sf *structField) ([]byte, error) {
-		var err error
+	return func(b []byte, p unsafe.Pointer, sf *structField) []byte {
 		if s := (*Slice)(p); s != nil {
 			for i := 0; i < s.Len(); i++ {
 				elem := s.Index(i, elemSize)
-				b, err = codec.encode(b, elem, sf)
-				if err != nil {
-					return b, err
-				}
+				b = codec.encode(b, elem, sf)
 			}
 		}
-		return b, nil
+		return b
 	}
 }
 

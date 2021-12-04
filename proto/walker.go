@@ -71,13 +71,13 @@ func (w *walker) structCodec(t reflect.Type) *codec {
 	c.size = func(p unsafe.Pointer, f *structField) int {
 		p = deref(p)
 		if p != nil {
-			n := info.size(p) + int(f.tagsize)
+			n := info.size(p) + f.tagsize
 			n += sizeOfVarint(uint64(n))
 			return n
 		}
 		return 0
 	}
-	c.encode = func(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
+	c.encode = func(b []byte, p unsafe.Pointer, f *structField) []byte {
 		p = deref(p)
 		if p != nil {
 			b = appendVarint(b, f.wiretag)
@@ -85,7 +85,7 @@ func (w *walker) structCodec(t reflect.Type) *codec {
 			b = appendVarint(b, uint64(n))
 			return info.encode(b, p)
 		}
-		return b, nil
+		return b
 	}
 	c.decode = func(b []byte, p unsafe.Pointer) (int, error) {
 		v := (*unsafe.Pointer)(p)
@@ -334,12 +334,12 @@ func pointerSizeFuncOf(_ reflect.Type, c *codec) sizeFunc {
 }
 
 func pointerEncodeFuncOf(_ reflect.Type, c *codec) encodeFunc {
-	return func(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
+	return func(b []byte, p unsafe.Pointer, f *structField) []byte {
 		if p != nil {
 			p = deref(p)
 			return c.encode(b, p, f)
 		}
-		return b, nil
+		return b
 	}
 }
 

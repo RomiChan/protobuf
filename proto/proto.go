@@ -28,11 +28,7 @@ func Marshal(v interface{}) ([]byte, error) {
 	t = t.Elem()
 	info := cachedStructInfoOf(t)
 	b := make([]byte, 0, info.size(p))
-	var err error
-	b, err = info.encode(b, p)
-	if err != nil {
-		return nil, fmt.Errorf("proto.Marshal(%T): %w", v, err)
-	}
+	b = info.encode(b, p)
 	return b, nil
 }
 

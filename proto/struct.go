@@ -43,18 +43,14 @@ func (info *structInfo) size(p unsafe.Pointer) int {
 	return n
 }
 
-func (info *structInfo) encode(b []byte, p unsafe.Pointer) ([]byte, error) {
+func (info *structInfo) encode(b []byte, p unsafe.Pointer) []byte {
 	if p == nil {
-		return b, nil
+		return b
 	}
-	var err error
 	for _, f := range info.fields {
-		b, err = f.codec.encode(b, f.pointer(p), f)
-		if err != nil {
-			return b, err
-		}
+		b = f.codec.encode(b, f.pointer(p), f)
 	}
-	return b, nil
+	return b
 }
 
 func (info *structInfo) decode(b []byte, p unsafe.Pointer) (int, error) {

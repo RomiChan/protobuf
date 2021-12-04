@@ -61,14 +61,13 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 	keyCodec := f.keyField.codec
 	valCodec := f.valField.codec
 
-	return func(b []byte, p unsafe.Pointer, sf *structField) ([]byte, error) {
+	return func(b []byte, p unsafe.Pointer, sf *structField) []byte {
 		if p == nil {
-			return b, nil
+			return b
 		}
 		p = *(*unsafe.Pointer)(p)
 
 		origLen := len(b)
-		var err error
 
 		m := MapIter{}
 		defer m.Done()
@@ -83,20 +82,14 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 
 			b = append(b, mapTag...)
 			b = appendVarint(b, uint64(elemSize))
-			b, err = keyCodec.encode(b, key, f.keyField)
-			if err != nil {
-				return b, err
-			}
-			b, err = valCodec.encode(b, val, f.valField)
-			if err != nil {
-				return b, err
-			}
+			b = keyCodec.encode(b, key, f.keyField)
+			b = valCodec.encode(b, val, f.valField)
 		}
 
 		if len(b) == origLen {
 			b = append(b, zero...)
 		}
-		return b, nil
+		return b
 	}
 }
 
