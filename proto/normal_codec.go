@@ -48,7 +48,7 @@ var bytesCodec = codec{
 func sizeOfBytes(p unsafe.Pointer, f *structField) int {
 	v := *(*[]byte)(p)
 	if v != nil {
-		return sizeOfVarlen(len(v)) + int(f.tagsize)
+		return sizeOfVarlen(len(v)) + f.tagsize
 	}
 	return 0
 }
@@ -82,7 +82,7 @@ var stringCodec = codec{
 func sizeOfString(p unsafe.Pointer, f *structField) int {
 	v := *(*string)(p)
 	if v != "" {
-		return sizeOfVarlen(len(v)) + int(f.tagsize)
+		return sizeOfVarlen(len(v)) + f.tagsize
 	}
 	return 0
 }
@@ -170,7 +170,7 @@ var int32Codec = codec{
 func sizeOfInt32(p unsafe.Pointer, f *structField) int {
 	v := *(*int32)(p)
 	if v != 0 {
-		return sizeOfVarint(uint64(v)) + int(f.tagsize)
+		return sizeOfVarint(uint64(v)) + f.tagsize
 	}
 	return 0
 }
@@ -199,7 +199,7 @@ var int64Codec = codec{
 func sizeOfInt64(p unsafe.Pointer, f *structField) int {
 	v := *(*int64)(p)
 	if v != 0 {
-		return sizeOfVarint(uint64(v)) + int(f.tagsize)
+		return sizeOfVarint(uint64(v)) + f.tagsize
 	}
 	return 0
 }
@@ -227,7 +227,7 @@ var uint32Codec = codec{
 
 func sizeOfUint32(p unsafe.Pointer, f *structField) int {
 	if v := *(*uint32)(p); v != 0 {
-		return sizeOfVarint(uint64(v)) + int(f.tagsize)
+		return sizeOfVarint(uint64(v)) + f.tagsize
 	}
 	return 0
 }
@@ -254,7 +254,7 @@ var fixed32Codec = codec{
 
 func sizeOfFixed32(p unsafe.Pointer, f *structField) int {
 	if *(*uint32)(p) != 0 {
-		return 4 + int(f.tagsize)
+		return 4 + f.tagsize
 	}
 	return 0
 }
@@ -281,7 +281,7 @@ var uint64Codec = codec{
 
 func sizeOfUint64(p unsafe.Pointer, f *structField) int {
 	if v := *(*uint64)(p); v != 0 {
-		return sizeOfVarint(v) + int(f.tagsize)
+		return sizeOfVarint(v) + f.tagsize
 	}
 	return 0
 }
@@ -308,7 +308,7 @@ var fixed64Codec = codec{
 
 func sizeOfFixed64(p unsafe.Pointer, f *structField) int {
 	if *(*uint64)(p) != 0 {
-		return 8 + int(f.tagsize)
+		return 8 + f.tagsize
 	}
 	return 0
 }
@@ -335,7 +335,7 @@ var zigzag32Codec = codec{
 
 func sizeOfZigzag32(p unsafe.Pointer, f *structField) int {
 	if v := *(*int32)(p); v != 0 {
-		return sizeOfVarint(encodeZigZag64(int64(v))) + int(f.tagsize)
+		return sizeOfVarint(encodeZigZag64(int64(v))) + f.tagsize
 	}
 	return 0
 }
@@ -362,7 +362,7 @@ var zigzag64Codec = codec{
 
 func sizeOfZigzag64(p unsafe.Pointer, f *structField) int {
 	if v := *(*int64)(p); v != 0 {
-		return sizeOfVarint(encodeZigZag64(v)) + int(f.tagsize)
+		return sizeOfVarint(encodeZigZag64(v)) + f.tagsize
 	}
 	return 0
 }

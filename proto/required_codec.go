@@ -26,7 +26,7 @@ var stringRequiredCodec = codec{size: sizeOfStringRequired, encode: encodeString
 
 func sizeOfStringRequired(p unsafe.Pointer, f *structField) int {
 	v := *(*string)(p)
-	return sizeOfVarlen(len(v)) + int(f.tagsize)
+	return sizeOfVarlen(len(v)) + f.tagsize
 }
 func encodeStringRequired(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	v := *(*string)(p)
@@ -64,7 +64,7 @@ var int32RequiredCodec = codec{size: sizeOfInt32Required, encode: encodeInt32Req
 
 func sizeOfInt32Required(p unsafe.Pointer, f *structField) int {
 	v := *(*int32)(p)
-	return sizeOfVarint(uint64(v)) + int(f.tagsize)
+	return sizeOfVarint(uint64(v)) + f.tagsize
 }
 func encodeInt32Required(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	v := *(*int32)(p)
@@ -77,7 +77,7 @@ var int64RequiredCodec = codec{size: sizeOfInt64Required, encode: encodeInt64Req
 
 func sizeOfInt64Required(p unsafe.Pointer, f *structField) int {
 	v := *(*int64)(p)
-	return sizeOfVarint(uint64(v)) + int(f.tagsize)
+	return sizeOfVarint(uint64(v)) + f.tagsize
 }
 func encodeInt64Required(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	v := *(*int64)(p)
@@ -90,7 +90,7 @@ var uint32RequiredCodec = codec{size: sizeOfUint32Required, encode: encodeUint32
 
 func sizeOfUint32Required(p unsafe.Pointer, f *structField) int {
 	v := *(*uint32)(p)
-	return sizeOfVarint(uint64(v)) + int(f.tagsize)
+	return sizeOfVarint(uint64(v)) + f.tagsize
 }
 func encodeUint32Required(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	v := *(*uint32)(p)
@@ -102,7 +102,7 @@ func encodeUint32Required(b []byte, p unsafe.Pointer, f *structField) ([]byte, e
 var fixed32RequiredCodec = codec{size: sizeOfFixed32Required, encode: encodeFixed32Required, decode: decodeFixed32}
 
 func sizeOfFixed32Required(p unsafe.Pointer, f *structField) int {
-	return 4 + int(f.tagsize)
+	return 4 + f.tagsize
 }
 func encodeFixed32Required(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	v := *(*uint32)(p)
@@ -115,7 +115,7 @@ var uint64RequiredCodec = codec{size: sizeOfUint64Required, encode: encodeUint64
 
 func sizeOfUint64Required(p unsafe.Pointer, f *structField) int {
 	v := *(*uint64)(p)
-	return sizeOfVarint(v) + int(f.tagsize)
+	return sizeOfVarint(v) + f.tagsize
 }
 func encodeUint64Required(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	v := *(*uint64)(p)
@@ -127,7 +127,7 @@ func encodeUint64Required(b []byte, p unsafe.Pointer, f *structField) ([]byte, e
 var fixed64RequiredCodec = codec{size: sizeOfFixed64Required, encode: encodeFixed64Required, decode: decodeFixed64}
 
 func sizeOfFixed64Required(p unsafe.Pointer, f *structField) int {
-	return 8 + int(f.tagsize)
+	return 8 + f.tagsize
 }
 func encodeFixed64Required(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	v := *(*uint64)(p)
@@ -140,7 +140,7 @@ var zigzag32RequiredCodec = codec{size: sizeOfZigzag32Required, encode: encodeZi
 
 func sizeOfZigzag32Required(p unsafe.Pointer, f *structField) int {
 	v := *(*int32)(p)
-	return sizeOfVarint(encodeZigZag64(int64(v))) + int(f.tagsize)
+	return sizeOfVarint(encodeZigZag64(int64(v))) + f.tagsize
 }
 func encodeZigzag32Required(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	v := *(*int32)(p)
@@ -153,7 +153,7 @@ var zigzag64RequiredCodec = codec{size: sizeOfZigzag64Required, encode: encodeZi
 
 func sizeOfZigzag64Required(p unsafe.Pointer, f *structField) int {
 	v := *(*int64)(p)
-	return sizeOfVarint(encodeZigZag64(v)) + int(f.tagsize)
+	return sizeOfVarint(encodeZigZag64(v)) + f.tagsize
 }
 func encodeZigzag64Required(b []byte, p unsafe.Pointer, f *structField) ([]byte, error) {
 	v := *(*int64)(p)

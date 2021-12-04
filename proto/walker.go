@@ -92,7 +92,12 @@ func (w *walker) structCodec(t reflect.Type) *codec {
 		if *v == nil {
 			*v = unsafe.Pointer(reflect.New(elem).Pointer())
 		}
-		return info.decode(b, *v)
+		_, n, err := decodeVarint(b)
+		if err != nil {
+			return n, err
+		}
+		l, err := info.decode(b[n:], *v)
+		return n + l, err
 	}
 	return c
 }
@@ -177,7 +182,6 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 			}
 			switch baseKindOf(f.Type) {
 			case reflect.Struct:
-				field.flags |= embedded
 				field.codec = w.codec(f.Type, conf)
 
 			case reflect.Slice:
@@ -186,9 +190,6 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 				if elem.Kind() == reflect.Uint8 { // []byte
 					field.codec = w.codec(f.Type, conf)
 				} else {
-					if baseKindOf(elem) == reflect.Struct {
-						field.flags |= embedded
-					}
 					conf.required = true
 					field.codec = w.codec(elem, conf)
 					field.codec = sliceCodecOf(f.Type, field, w)
@@ -201,32 +202,25 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 
 				t, _ := parseStructTag(f.Tag.Get("protobuf_key"))
 				keyField := &structField{wiretag: uint64(t.fieldNumber)<<3 | uint64(t.wireType)}
-				keyField.tagsize = uint8(sizeOfVarint(keyField.wiretag))
+				keyField.tagsize = sizeOfVarint(keyField.wiretag)
 				conf.zigzag = t.zigzag
 				keyField.codec = w.codec(key, conf)
 
 				t, _ = parseStructTag(f.Tag.Get("protobuf_val"))
 				valFiled := &structField{wiretag: uint64(t.fieldNumber)<<3 | uint64(t.wireType)}
-				valFiled.tagsize = uint8(sizeOfVarint(valFiled.wiretag))
+				valFiled.tagsize = sizeOfVarint(valFiled.wiretag)
 				conf.zigzag = t.zigzag
 				valFiled.codec = w.codec(val, conf)
 
 				m.keyField = keyField
 				m.valField = valFiled
-				if baseKindOf(key) == reflect.Struct {
-					m.keyField.flags |= embedded
-				}
-				if baseKindOf(val) == reflect.Struct {
-					m.valField.flags |= embedded
-				}
-				field.flags |= embedded
 				field.codec = w.mapCodec(f.Type, m)
 
 			default:
 				field.codec = w.codec(f.Type, conf)
 			}
 		}
-		field.tagsize = uint8(sizeOfVarint(field.wiretag))
+		field.tagsize = sizeOfVarint(field.wiretag)
 		fields = append(fields, &field)
 	}
 

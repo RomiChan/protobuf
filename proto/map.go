@@ -135,14 +135,17 @@ func mapDecodeFuncOf(t reflect.Type, m *mapField, w *walker) decodeFunc {
 			s = unsafe.Pointer(reflect.New(structType).Pointer())
 		}
 
-		n, err := info.decode(b, s)
+		_, nl, err := decodeVarint(b)
+		if err != nil {
+			return 0, err
+		}
+		n, err := info.decode(b[nl:], s)
 		if err == nil {
 			v := MapAssign(mtype, *m, s)
 			Assign(vtype, v, unsafe.Pointer(uintptr(s)+valueOffset))
 		}
-
 		Assign(stype, s, structZero)
 		structPool.Put(s)
-		return n, err
+		return n + nl, err
 	}
 }

@@ -8,8 +8,6 @@ import (
 	"unsafe"
 )
 
-const embedded = 1 << 0
-
 type structInfo struct {
 	fields     []*structField
 	fieldIndex map[fieldNumber]*structField
@@ -19,12 +17,7 @@ type structField struct {
 	offset  uintptr
 	wiretag uint64
 	codec   *codec
-	tagsize uint8
-	flags   uint8
-}
-
-func (f *structField) String() string {
-	return fmt.Sprintf("[%d,%s]", f.fieldNumber(), f.wireType())
+	tagsize int
 }
 
 func (f *structField) fieldNumber() fieldNumber {
@@ -33,10 +26,6 @@ func (f *structField) fieldNumber() fieldNumber {
 
 func (f *structField) wireType() wireType {
 	return wireType(f.wiretag & 7)
-}
-
-func (f *structField) embedded() bool {
-	return (f.flags & embedded) != 0
 }
 
 func (f *structField) pointer(p unsafe.Pointer) unsafe.Pointer {
@@ -135,12 +124,7 @@ func (info *structInfo) decode(b []byte, p unsafe.Pointer) (int, error) {
 			if l > uint64(len(b)-(offset+n)) {
 				return len(b), fieldError(fieldNumber, wireType, io.ErrUnexpectedEOF)
 			}
-			if f.embedded() {
-				offset += n
-				data = b[offset : offset+int(l)]
-			} else {
-				data = b[offset : offset+n+int(l)]
-			}
+			data = b[offset : offset+n+int(l)]
 
 		case fixed32:
 			if (offset + 4) > len(b) {
