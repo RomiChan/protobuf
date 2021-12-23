@@ -87,7 +87,6 @@ func appendVarint(b []byte, v uint64) []byte {
 			byte((v>>56)&0x7f|0x80),
 			1)
 	}
-
 	return b
 }
 

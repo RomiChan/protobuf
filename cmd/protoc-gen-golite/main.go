@@ -43,6 +43,7 @@ import (
 	"os"
 
 	"google.golang.org/protobuf/compiler/protogen"
+	"google.golang.org/protobuf/types/pluginpb"
 
 	gengo "github.com/RomiChan/protobuf/internal/generator"
 )
@@ -66,6 +67,7 @@ func main() {
 				gengo.GenerateFile(gen, f)
 			}
 		}
+		gen.SupportedFeatures = uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
 		return nil
 	})
 }
