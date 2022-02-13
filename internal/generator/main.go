@@ -322,12 +322,11 @@ func genMessageGetterMethods(g *protogen.GeneratedFile, f *fileInfo, m *messageI
 			g.P("return ", defaultValue)
 			g.P("}")
 		default:
-			g.P(leadingComments, "func (x *", m.GoIdent, ") Get", field.GoName, "() ", goType, " {")
 			if !field.Desc.HasPresence() || defaultValue == "nil" {
-				g.P("if x != nil {")
-			} else {
-				g.P("if x != nil && x.", field.GoName, " != nil {")
+				continue
 			}
+			g.P(leadingComments, "func (x *", m.GoIdent, ") Get", field.GoName, "() ", goType, " {")
+			g.P("if x != nil && x.", field.GoName, " != nil {")
 			star := ""
 			if pointer {
 				star = "*"
