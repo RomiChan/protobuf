@@ -64,6 +64,10 @@ func (w *walker) codec(t reflect.Type, conf *walkerConfig) *codec {
 }
 
 func (w *walker) structCodec(t reflect.Type) *codec {
+	if c, ok := codecCache.Load(pointer(t)); ok {
+		return c.(*codec)
+	}
+
 	c := new(codec)
 	w.codecs[t] = c
 	elem := t.Elem()
@@ -99,7 +103,8 @@ func (w *walker) structCodec(t reflect.Type) *codec {
 		l, err := info.decode(b[n:], *v)
 		return n + l, err
 	}
-	return c
+	actualCodec, _ := codecCache.LoadOrStore(pointer(t), c)
+	return actualCodec.(*codec)
 }
 
 func baseKindOf(t reflect.Type) reflect.Kind {
@@ -114,6 +119,9 @@ func baseTypeOf(t reflect.Type) reflect.Type {
 }
 
 func (w *walker) structInfo(t reflect.Type) *structInfo {
+	if info, ok := structInfoCache.Load(pointer(t)); ok {
+		return info
+	}
 	if i, ok := w.infos[t]; ok {
 		return i
 	}
@@ -192,7 +200,7 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 				} else {
 					conf.required = true
 					field.codec = w.codec(elem, conf)
-					field.codec = sliceCodecOf(f.Type, field, w)
+					field.codec = sliceCodecOf(f.Type, field.codec, w)
 				}
 
 			case reflect.Map:
@@ -234,6 +242,7 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 		info.fieldIndex[f.fieldNumber()] = f
 	}
 
+	structInfoCache.Store(pointer(t), info)
 	return info
 }
 

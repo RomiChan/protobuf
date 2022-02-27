@@ -3,12 +3,13 @@ package proto
 import (
 	"fmt"
 	"reflect"
-	"sync/atomic"
+	"sync"
 	"unsafe"
 )
 
 //go:generate go run ./gen/pointer
 //go:generate go run ./gen/required
+//go:generate syncmap -name structMap -pkg proto "map[unsafe.Pointer]*structInfo"
 
 func Size(v interface{}) int {
 	t, p := inspect(v)
@@ -97,20 +98,12 @@ type codec struct {
 	decode decodeFunc
 }
 
-var structInfoCache atomic.Value // map[unsafe.Pointer]*structInfo
-
-func loadCachedStruct(t reflect.Type) (*structInfo, map[unsafe.Pointer]*structInfo) {
-	cache, _ := structInfoCache.Load().(map[unsafe.Pointer]*structInfo)
-	return cache[pointer(t)], cache
-}
-
-func storeCachedStruct(newCache map[unsafe.Pointer]*structInfo) {
-	structInfoCache.Store(newCache)
-}
+var structInfoCache structMap // map[unsafe.Pointer]*structInfo
+var codecCache sync.Map       // map[reflect.Type]codec
 
 func cachedStructInfoOf(t reflect.Type) *structInfo {
-	c, oldCache := loadCachedStruct(t)
-	if c != nil {
+	c, ok := structInfoCache.Load(pointer(t))
+	if ok {
 		return c
 	}
 
@@ -119,18 +112,9 @@ func cachedStructInfoOf(t reflect.Type) *structInfo {
 		infos:  make(map[reflect.Type]*structInfo),
 	}
 
-	newCache := make(map[unsafe.Pointer]*structInfo, len(oldCache)+1)
-	for p, c := range oldCache {
-		newCache[p] = c
-	}
-
 	info := w.structInfo(t)
-	for t, info := range w.infos {
-		newCache[pointer(t)] = info
-	}
-
-	storeCachedStruct(newCache)
-	return info
+	actual, _ := structInfoCache.LoadOrStore(pointer(t), info)
+	return actual
 }
 
 // Bool stores v in a new bool value and returns a pointer to it.

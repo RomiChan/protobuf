@@ -2,51 +2,57 @@ package proto
 
 import (
 	"reflect"
+	"sync"
 	"unsafe"
 
 	. "github.com/RomiChan/protobuf/internal/runtime_reflect"
 )
 
-func sliceCodecOf(t reflect.Type, f structField, w *walker) *codec {
+var sliceMap sync.Map // map[*codec]*codec for slice
+
+func sliceCodecOf(t reflect.Type, c *codec, w *walker) *codec {
+	if loaded, ok := sliceMap.Load(c); ok {
+		return loaded.(*codec)
+	}
 	s := new(codec)
 	w.codecs[t] = s
 
-	s.size = sliceSizeFuncOf(t, &f)
-	s.encode = sliceEncodeFuncOf(t, &f)
-	s.decode = sliceDecodeFuncOf(t, &f)
-	return s
+	s.size = sliceSizeFuncOf(t, c)
+	s.encode = sliceEncodeFuncOf(t, c)
+	s.decode = sliceDecodeFuncOf(t, c)
+
+	actualCodec, _ := sliceMap.LoadOrStore(c, s)
+	return actualCodec.(*codec)
 }
 
-func sliceSizeFuncOf(t reflect.Type, f *structField) sizeFunc {
+func sliceSizeFuncOf(t reflect.Type, c *codec) sizeFunc {
 	elemSize := alignedSize(t.Elem())
-	codec := f.codec
 	return func(p unsafe.Pointer, sf *structField) int {
 		n := 0
 		if v := (*Slice)(p); v != nil {
 			for i := 0; i < v.Len(); i++ {
 				elem := v.Index(i, elemSize)
-				n += codec.size(elem, sf)
+				n += c.size(elem, sf)
 			}
 		}
 		return n
 	}
 }
 
-func sliceEncodeFuncOf(t reflect.Type, f *structField) encodeFunc {
+func sliceEncodeFuncOf(t reflect.Type, c *codec) encodeFunc {
 	elemSize := alignedSize(t.Elem())
-	codec := f.codec
 	return func(b []byte, p unsafe.Pointer, sf *structField) []byte {
 		if s := (*Slice)(p); s != nil {
 			for i := 0; i < s.Len(); i++ {
 				elem := s.Index(i, elemSize)
-				b = codec.encode(b, elem, sf)
+				b = c.encode(b, elem, sf)
 			}
 		}
 		return b
 	}
 }
 
-func sliceDecodeFuncOf(t reflect.Type, f *structField) decodeFunc {
+func sliceDecodeFuncOf(t reflect.Type, c *codec) decodeFunc {
 	elemType := t.Elem()
 	elemSize := alignedSize(elemType)
 	return func(b []byte, p unsafe.Pointer) (int, error) {
@@ -57,7 +63,7 @@ func sliceDecodeFuncOf(t reflect.Type, f *structField) decodeFunc {
 			*s = growSlice(elemType, s)
 		}
 
-		n, err := f.codec.decode(b, s.Index(i, elemSize))
+		n, err := c.decode(b, s.Index(i, elemSize))
 		if err == nil {
 			s.SetLen(i + 1)
 		}
