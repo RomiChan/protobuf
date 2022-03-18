@@ -67,7 +67,9 @@ func (w *walker) structCodec(t reflect.Type) *codec {
 	if c, ok := codecCache.Load(pointer(t)); ok {
 		return c.(*codec)
 	}
-
+	if c, ok := w.codecs[t]; ok {
+		return c
+	}
 	c := new(codec)
 	w.codecs[t] = c
 	elem := t.Elem()
@@ -194,9 +196,8 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 
 			case reflect.Slice:
 				elem := f.Type.Elem()
-
 				if elem.Kind() == reflect.Uint8 { // []byte
-					field.codec = w.codec(f.Type, conf)
+					field.codec = &bytesCodec
 				} else {
 					conf.required = true
 					field.codec = w.codec(elem, conf)
@@ -237,7 +238,7 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 	copy(fields2, fields)
 	info.fields = fields2
 
-	info.fieldIndex = make(map[fieldNumber]*structField)
+	info.fieldIndex = make(map[fieldNumber]*structField, len(info.fields))
 	for _, f := range info.fields {
 		info.fieldIndex[f.fieldNumber()] = f
 	}

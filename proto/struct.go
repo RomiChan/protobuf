@@ -149,21 +149,16 @@ func (info *structInfo) decode(b []byte, p unsafe.Pointer) (int, error) {
 }
 
 type structTag struct {
-	name        string
-	enum        string
-	json        string
-	version     int
+	// version     int
 	wireType    wireType
 	fieldNumber fieldNumber
-	extensions  map[string]string
 	repeated    bool
 	zigzag      bool
 }
 
 func parseStructTag(tag string) (structTag, error) {
 	t := structTag{
-		version:    2,
-		extensions: make(map[string]string),
+		// version:    2,
 	}
 
 	for i, f := range splitFields(tag) {
@@ -206,19 +201,21 @@ func parseStructTag(tag string) (structTag, error) {
 			}
 
 		default:
-			name, value := splitNameValue(f)
-			switch name {
-			case "name":
-				t.name = value
-			case "enum":
-				t.enum = value
-			case "json":
-				t.json = value
-			case "proto3":
-				t.version = 3
-			default:
-				t.extensions[name] = value
-			}
+			/*
+				name, value := splitNameValue(f)
+				switch name {
+				case "name":
+					t.name = value
+				case "enum":
+					t.enum = value
+				case "json":
+					t.json = value
+				case "proto3":
+					t.version = 3
+				default:
+					t.extensions[name] = value
+				}
+			*/
 		}
 	}
 
@@ -229,6 +226,7 @@ func splitFields(s string) []string {
 	return strings.Split(s, ",")
 }
 
+/*
 func splitNameValue(s string) (name, value string) {
 	i := strings.IndexByte(s, '=')
 	if i < 0 {
@@ -237,3 +235,4 @@ func splitNameValue(s string) (name, value string) {
 		return strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+1:])
 	}
 }
+*/

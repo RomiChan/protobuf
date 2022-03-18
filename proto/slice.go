@@ -14,6 +14,9 @@ func sliceCodecOf(t reflect.Type, c *codec, w *walker) *codec {
 	if loaded, ok := sliceMap.Load(c); ok {
 		return loaded.(*codec)
 	}
+	if w.codecs[t] != nil {
+		return w.codecs[t]
+	}
 	s := new(codec)
 	w.codecs[t] = s
 
