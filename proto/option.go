@@ -32,7 +32,8 @@ func (o Option[T]) Unwrap() T {
 	if o.IsSome() {
 		return o.value
 	}
-	panic("cannot unwrap an option of None")
+	var zero T
+	return zero
 }
 
 func (o Option[T]) UnwrapOr(defaultValue T) T {
@@ -40,14 +41,6 @@ func (o Option[T]) UnwrapOr(defaultValue T) T {
 		return o.value
 	}
 	return defaultValue
-}
-
-func (o Option[T]) UnwrapOrZero() T {
-	if o.IsSome() {
-		return o.value
-	}
-	var zero T
-	return zero
 }
 
 func (o *Option[T]) unsafePointer() unsafe.Pointer {
