@@ -1,8 +1,9 @@
 module github.com/RomiChan/protobuf
 
-go 1.17
+go 1.18
 
 require (
+	github.com/RomiChan/syncx v0.0.0-20220404072119-d7ea0ae15a4c
 	github.com/stretchr/testify v1.7.0
 	google.golang.org/protobuf v1.27.1
 )

@@ -5,6 +5,17 @@ import (
 	"unsafe"
 )
 
+var (
+	optionBoolType    = reflect.TypeOf((*Option[bool])(nil)).Elem()
+	optionInt32Type   = reflect.TypeOf((*Option[int32])(nil)).Elem()
+	optionInt64Type   = reflect.TypeOf((*Option[int64])(nil)).Elem()
+	optionUInt32Type  = reflect.TypeOf((*Option[uint32])(nil)).Elem()
+	optionUInt64Type  = reflect.TypeOf((*Option[uint64])(nil)).Elem()
+	optionFloat32Type = reflect.TypeOf((*Option[float32])(nil)).Elem()
+	optionFloat64Type = reflect.TypeOf((*Option[float64])(nil)).Elem()
+	optionStringType  = reflect.TypeOf((*Option[string])(nil)).Elem()
+)
+
 type walker struct {
 	codecs map[reflect.Type]*codec
 	infos  map[reflect.Type]*structInfo
@@ -154,37 +165,54 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 		field.wiretag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
 		switch t.wireType {
 		case fixed32:
+			switch f.Type {
+			case optionFloat32Type:
+				field.codec = &float32OptionCodec
+			case optionUInt32Type:
+				field.codec = &fixed32OptionCodec
+			}
 			switch baseKindOf(f.Type) {
 			case reflect.Uint32:
-				if f.Type.Kind() == reflect.Ptr {
-					field.codec = &fixed32PtrCodec
-				} else {
-					field.codec = &fixed32Codec
-				}
+				field.codec = &fixed32Codec
 			case reflect.Float32:
-				if f.Type.Kind() == reflect.Ptr {
-					field.codec = &float32PtrCodec
-				} else {
-					field.codec = &float32Codec
-				}
+				field.codec = &float32Codec
 			}
 		case fixed64:
+			switch f.Type {
+			case optionUInt64Type:
+				field.codec = &fixed64OptionCodec
+			case optionFloat64Type:
+				field.codec = &float64OptionCodec
+			}
 			switch baseKindOf(f.Type) {
 			case reflect.Uint64:
-				if f.Type.Kind() == reflect.Ptr {
-					field.codec = &fixed64PtrCodec
-				} else {
-					field.codec = &fixed64Codec
-				}
+				field.codec = &fixed64Codec
 			case reflect.Float64:
-				if f.Type.Kind() == reflect.Ptr {
-					field.codec = &float64PtrCodec
-				} else {
-					field.codec = &float64Codec
-				}
+				field.codec = &float64Codec
 			}
 		}
-
+		if field.codec == nil {
+			switch f.Type {
+			case optionBoolType:
+				field.codec = &boolOptionCodec
+			case optionInt32Type:
+				field.codec = &int32OptionCodec
+				if t.zigzag {
+					field.codec = &zigzag32OptionCodec
+				}
+			case optionInt64Type:
+				field.codec = &int64OptionCodec
+				if t.zigzag {
+					field.codec = &zigzag64OptionCodec
+				}
+			case optionUInt32Type:
+				field.codec = &uint32OptionCodec
+			case optionUInt64Type:
+				field.codec = &uint64OptionCodec
+			case optionStringType:
+				field.codec = &stringOptionCodec
+			}
+		}
 		if field.codec == nil {
 			conf := &walkerConfig{
 				zigzag: t.zigzag,
@@ -255,28 +283,6 @@ func deref(p unsafe.Pointer) unsafe.Pointer {
 
 func (w *walker) pointer(t reflect.Type, conf *walkerConfig) *codec {
 	switch t.Elem().Kind() {
-	case reflect.Bool:
-		return &boolPtrCodec
-	case reflect.Int32:
-		if conf.zigzag {
-			return &zigzag32PtrCodec
-		}
-		return &int32PtrCodec
-	case reflect.Int64:
-		if conf.zigzag {
-			return &zigzag64PtrCodec
-		}
-		return &int64PtrCodec
-	case reflect.Uint32:
-		return &uint32PtrCodec
-	case reflect.Uint64:
-		return &uint64PtrCodec
-	case reflect.Float32:
-		return &float32PtrCodec
-	case reflect.Float64:
-		return &float64PtrCodec
-	case reflect.String:
-		return &stringPtrCodec
 	case reflect.Struct:
 		return w.structCodec(t)
 	}
@@ -335,8 +341,8 @@ func (w *walker) required(t reflect.Type, conf *walkerConfig) *codec {
 
 func pointerSizeFuncOf(_ reflect.Type, c *codec) sizeFunc {
 	return func(p unsafe.Pointer, f *structField) int {
+		p = deref(p)
 		if p != nil {
-			p = *(*unsafe.Pointer)(p)
 			return c.size(p, f)
 		}
 		return 0
@@ -345,8 +351,8 @@ func pointerSizeFuncOf(_ reflect.Type, c *codec) sizeFunc {
 
 func pointerEncodeFuncOf(_ reflect.Type, c *codec) encodeFunc {
 	return func(b []byte, p unsafe.Pointer, f *structField) []byte {
+		p = deref(p)
 		if p != nil {
-			p = deref(p)
 			return c.encode(b, p, f)
 		}
 		return b

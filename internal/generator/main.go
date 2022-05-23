@@ -47,6 +47,8 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
+var protoPackage = protogen.GoImportPath("github.com/RomiChan/protobuf/proto")
+
 // GenerateFile generates the contents of a .pb.go file.
 func GenerateFile(gen *protogen.Plugin, file *protogen.File) *protogen.GeneratedFile {
 	filename := file.GeneratedFilenamePrefix + ".pb.go"
@@ -258,9 +260,9 @@ func genMessageField(g *protogen.GeneratedFile, f *fileInfo, m *messageInfo, fie
 		sf.append(oneof.GoName)
 		return
 	}
-	goType, pointer := fieldGoType(g, f, field)
-	if pointer {
-		goType = "*" + goType
+	goType, option := fieldGoType(g, f, field)
+	if option {
+		goType = g.QualifiedGoIdent(protoPackage.Ident("Option[" + goType + "]"))
 	}
 	tags := structTags{
 		{"protobuf", fieldProtobufTagValue(field)},
@@ -322,6 +324,7 @@ func genMessageGetterMethods(g *protogen.GeneratedFile, f *fileInfo, m *messageI
 			g.P("return ", defaultValue)
 			g.P("}")
 		default:
+			continue
 			if !field.Desc.HasPresence() || defaultValue == "nil" {
 				continue
 			}

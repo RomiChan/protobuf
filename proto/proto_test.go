@@ -1,4 +1,4 @@
-package proto
+package proto_test
 
 import (
 	"encoding/hex"
@@ -10,51 +10,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	. "github.com/RomiChan/protobuf/proto"
 	"github.com/RomiChan/protobuf/proto/internal/testproto"
 )
-
-func TestEncodeDecodeVarint(t *testing.T) {
-	var b []byte
-
-	b = appendVarint(b, 42)
-
-	v, _, err := decodeVarint(b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if v != 42 {
-		t.Errorf("decoded value mismatch: want %d, got %d", 42, v)
-	}
-}
-
-func TestEncodeDecodeVarintZigZag(t *testing.T) {
-	var b []byte
-
-	b = appendVarintZigZag(b, -42)
-	v, _, err := decodeVarintZigZag(b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if v != -42 {
-		t.Errorf("decoded value mismatch: want %d, got %d", -42, v)
-	}
-}
-
-func TestEncodeDecodeTag(t *testing.T) {
-	var b []byte
-
-	b = appendTag(b, 1, varint)
-	num, typ, _, err := decodeTag(b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if num != 1 {
-		t.Errorf("decoded field number mismatch: want %d, got %d", 1, num)
-	}
-	if typ != varint {
-		t.Errorf("decoded wire type mismatch: want %d, got %d", varint, typ)
-	}
-}
 
 type key struct {
 	Hi uint64 `protobuf:"varint,1,opt"`
@@ -319,16 +277,16 @@ func TestFixed(t *testing.T) {
 	}
 }
 
-func TestFixedPointer(t *testing.T) {
+func TestFixedOption(t *testing.T) {
 	type message struct {
-		Fixed32 *uint32 `protobuf:"fixed32,1,opt"`
-		Fixed64 *uint64 `protobuf:"fixed64,2,opt"`
+		Fixed32 Option[uint32] `protobuf:"fixed32,1,opt"`
+		Fixed64 Option[uint64] `protobuf:"fixed64,2,opt"`
 	}
 	var fixed32 uint32 = 0x01020304
 	var fixed64 uint64 = 0x0102030405060708
 	m := &message{
-		Fixed32: &fixed32,
-		Fixed64: &fixed64,
+		Fixed32: Some(fixed32),
+		Fixed64: Some(fixed64),
 	}
 	if Size(m) != 14 { // 1+4+1+8
 		t.Fatalf("Size of struct with fixed32 and fixed64 fields is not 14.")
@@ -341,11 +299,11 @@ func TestFixedPointer(t *testing.T) {
 	if err := Unmarshal(b, &m2); err != nil {
 		t.Fatalf("proto.Unmarshal failed: %v", err)
 	}
-	if *m2.Fixed32 != 0x01020304 {
-		t.Errorf("m2.Fixed32 = %x, want 0x01020304", m2.Fixed32)
+	if m2.Fixed32.Unwrap() != 0x01020304 {
+		t.Errorf("m2.Fixed32 = %v, want 0x01020304", m2.Fixed32)
 	}
-	if *m2.Fixed64 != 0x0102030405060708 {
-		t.Errorf("m2.Fixed64 = %x, want 0x0102030405060708", m2.Fixed64)
+	if m2.Fixed64.Unwrap() != 0x0102030405060708 {
+		t.Errorf("m2.Fixed64 = %v, want 0x0102030405060708", m2.Fixed64)
 	}
 }
 
