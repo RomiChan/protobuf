@@ -310,7 +310,7 @@ func genMessageGetterMethods(g *protogen.GeneratedFile, f *fileInfo, m *messageI
 		}
 
 		// Getter for message field.
-		goType, pointer := fieldGoType(g, f, field)
+		goType, _ := fieldGoType(g, f, field)
 		defaultValue := fieldDefaultValue(g, f, m, field)
 		g.Annotate(m.GoIdent.GoName+".Get"+field.GoName, field.Location)
 		leadingComments := appendDeprecationSuffix("",
@@ -324,20 +324,21 @@ func genMessageGetterMethods(g *protogen.GeneratedFile, f *fileInfo, m *messageI
 			g.P("return ", defaultValue)
 			g.P("}")
 		default:
-			continue
-			if !field.Desc.HasPresence() || defaultValue == "nil" {
-				continue
-			}
-			g.P(leadingComments, "func (x *", m.GoIdent, ") Get", field.GoName, "() ", goType, " {")
-			g.P("if x != nil && x.", field.GoName, " != nil {")
-			star := ""
-			if pointer {
-				star = "*"
-			}
-			g.P("return ", star, " x.", field.GoName)
-			g.P("}")
-			g.P("return ", defaultValue)
-			g.P("}")
+			/*
+				if !field.Desc.HasPresence() || defaultValue == "nil" {
+					continue
+				}
+				g.P(leadingComments, "func (x *", m.GoIdent, ") Get", field.GoName, "() ", goType, " {")
+				g.P("if x != nil && x.", field.GoName, " != nil {")
+				star := ""
+				if pointer {
+					star = "*"
+				}
+				g.P("return ", star, " x.", field.GoName)
+				g.P("}")
+				g.P("return ", defaultValue)
+				g.P("}")'
+			*/
 		}
 		g.P()
 	}
