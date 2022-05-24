@@ -171,7 +171,7 @@ func genEnum(g *protogen.GeneratedFile, _ *fileInfo, e *enumInfo) {
 	leadingComments := appendDeprecationSuffix(e.Comments.Leading,
 		e.Desc.Options().(*descriptorpb.EnumOptions).GetDeprecated())
 	g.P(leadingComments,
-		"type ", e.GoIdent, " int32")
+		"type ", e.GoIdent, "= int32")
 
 	// Enum value constants.
 	g.P("const (")
@@ -191,12 +191,14 @@ func genEnum(g *protogen.GeneratedFile, _ *fileInfo, e *enumInfo) {
 	// NOTE: A pointer value is needed to represent presence in proto2.
 	// Since a proto2 message can reference a proto3 enum, it is useful to
 	// always generate this method (even on proto3 enums) to support that case.
-	g.P("func (x ", e.GoIdent, ") Enum() *", e.GoIdent, " {")
-	g.P("p := new(", e.GoIdent, ")")
-	g.P("*p = x")
-	g.P("return p")
-	g.P("}")
-	g.P()
+	/*
+		g.P("func (x ", e.GoIdent, ") Enum() *", e.GoIdent, " {")
+		g.P("p := new(", e.GoIdent, ")")
+		g.P("*p = x")
+		g.P("return p")
+		g.P("}")
+		g.P()
+	*/
 
 	// String method.
 	// todo: gen string method
