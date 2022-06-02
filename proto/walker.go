@@ -88,8 +88,8 @@ func (w *walker) structCodec(t reflect.Type) *codec {
 	c.size = func(p unsafe.Pointer, f *structField) int {
 		p = deref(p)
 		if p != nil {
-			n := info.size(p) + f.tagsize
-			n += sizeOfVarint(uint64(n))
+			n := info.size(p)
+			n += sizeOfVarint(uint64(n)) + f.tagsize
 			return n
 		}
 		return 0

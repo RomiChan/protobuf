@@ -336,3 +336,22 @@ func TestMap(t *testing.T) {
 	assert.NoError(t, Unmarshal(out, &mo))
 	assert.Equal(t, mi, &mo)
 }
+
+func TestIssue3(t *testing.T) {
+	type ST3 struct {
+		Str []byte `protobuf:"bytes,1,opt"`
+	}
+	type ST2 struct {
+		ST *ST3 `protobuf:"bytes,1,opt"`
+	}
+	type ST1 struct {
+		ST *ST2 `protobuf:"bytes,1,opt"`
+	}
+	st1 := &ST1{&ST2{&ST3{
+		Str: make([]byte, 0x7D),
+	}}}
+	b, _ := Marshal(st1)
+	st2 := new(ST1)
+	assert.NoError(t, Unmarshal(b, st2))
+	assert.Equal(t, st1, st2)
+}
