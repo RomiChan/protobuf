@@ -225,6 +225,7 @@ func genMessage(g *protogen.GeneratedFile, f *fileInfo, m *messageInfo) {
 
 func genMessageFields(g *protogen.GeneratedFile, f *fileInfo, m *messageInfo) {
 	sf := f.allMessageFieldsByPtr[m]
+	f.comparable = true
 	for _, field := range m.Fields {
 		genMessageField(g, f, m, field, sf)
 	}
@@ -265,7 +266,6 @@ func genMessageField(g *protogen.GeneratedFile, f *fileInfo, m *messageInfo, fie
 		sf.append(oneof.GoName)
 		return
 	}
-	f.comparable = true
 	goType, option, comp := fieldGoType(g, f, field)
 	f.comparable = f.comparable && comp
 	if option {
