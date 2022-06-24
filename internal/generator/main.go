@@ -228,6 +228,9 @@ func genMessageFields(g *protogen.GeneratedFile, f *fileInfo, m *messageInfo) {
 	for _, field := range m.Fields {
 		genMessageField(g, f, m, field, sf)
 	}
+	if f.comparable {
+		g.P("_ [0]func()")
+	}
 }
 
 func genMessageField(g *protogen.GeneratedFile, f *fileInfo, m *messageInfo, field *protogen.Field, sf *structFields) {
@@ -262,7 +265,9 @@ func genMessageField(g *protogen.GeneratedFile, f *fileInfo, m *messageInfo, fie
 		sf.append(oneof.GoName)
 		return
 	}
-	goType, option := fieldGoType(g, f, field)
+	f.comparable = true
+	goType, option, comp := fieldGoType(g, f, field)
+	f.comparable = f.comparable && comp
 	if option {
 		goType = g.QualifiedGoIdent(protoPackage.Ident("Option[" + goType + "]"))
 	}
@@ -312,7 +317,7 @@ func genMessageGetterMethods(g *protogen.GeneratedFile, f *fileInfo, m *messageI
 		}
 
 		// Getter for message field.
-		goType, _ := fieldGoType(g, f, field)
+		goType, _, _ := fieldGoType(g, f, field)
 		defaultValue := fieldDefaultValue(g, f, m, field)
 		g.Annotate(m.GoIdent.GoName+".Get"+field.GoName, field.Location)
 		leadingComments := appendDeprecationSuffix("",
@@ -349,12 +354,13 @@ func genMessageGetterMethods(g *protogen.GeneratedFile, f *fileInfo, m *messageI
 // fieldGoType returns the Go type used for a field.
 //
 // If it returns pointer=true, the struct field is a pointer to the type.
-func fieldGoType(g *protogen.GeneratedFile, f *fileInfo, field *protogen.Field) (goType string, pointer bool) {
+func fieldGoType(g *protogen.GeneratedFile, f *fileInfo, field *protogen.Field) (goType string, pointer bool, comparable bool) {
 	if field.Desc.IsWeak() {
-		return "struct{}", false
+		return "struct{}", false, true
 	}
 
 	pointer = field.Desc.HasPresence()
+	comparable = true
 	switch field.Desc.Kind() {
 	case protoreflect.BoolKind:
 		goType = "bool"
@@ -376,6 +382,7 @@ func fieldGoType(g *protogen.GeneratedFile, f *fileInfo, field *protogen.Field) 
 		goType = "string"
 	case protoreflect.BytesKind:
 		goType = "[]byte"
+		comparable = false
 		pointer = false // rely on nullability of slices for presence
 	case protoreflect.MessageKind, protoreflect.GroupKind:
 		goType = "*" + g.QualifiedGoIdent(field.Message.GoIdent)
@@ -383,13 +390,13 @@ func fieldGoType(g *protogen.GeneratedFile, f *fileInfo, field *protogen.Field) 
 	}
 	switch {
 	case field.Desc.IsList():
-		return "[]" + goType, false
+		return "[]" + goType, false, false
 	case field.Desc.IsMap():
-		keyType, _ := fieldGoType(g, f, field.Message.Fields[0])
-		valType, _ := fieldGoType(g, f, field.Message.Fields[1])
-		return fmt.Sprintf("map[%v]%v", keyType, valType), false
+		keyType, _, _ := fieldGoType(g, f, field.Message.Fields[0])
+		valType, _, _ := fieldGoType(g, f, field.Message.Fields[1])
+		return fmt.Sprintf("map[%v]%v", keyType, valType), false, false
 	}
-	return goType, pointer
+	return goType, pointer, comparable
 }
 
 func fieldProtobufTagValue(field *protogen.Field) string {
@@ -465,7 +472,7 @@ func genMessageOneofWrapperTypes(g *protogen.GeneratedFile, f *fileInfo, m *mess
 			g.Annotate(field.GoIdent.GoName, field.Location)
 			g.Annotate(field.GoIdent.GoName+"."+field.GoName, field.Location)
 			g.P("type ", field.GoIdent, " struct {")
-			goType, _ := fieldGoType(g, f, field)
+			goType, _, _ := fieldGoType(g, f, field)
 			tags := structTags{
 				{"protobuf", fieldProtobufTagValue(field)},
 			}

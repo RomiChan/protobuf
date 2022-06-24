@@ -51,6 +51,8 @@ type fileInfo struct {
 	allEnumsByPtr         map[*enumInfo]int    // value is index into allEnums
 	allMessagesByPtr      map[*messageInfo]int // value is index into allMessages
 	allMessageFieldsByPtr map[*messageInfo]*structFields
+
+	comparable bool
 }
 
 type structFields struct {
