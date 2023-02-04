@@ -3,6 +3,7 @@ package proto
 import (
 	"errors"
 	"fmt"
+	"reflect"
 )
 
 var ErrWireTypeUnknown = errors.New("unknown wire type")
@@ -25,4 +26,26 @@ func fieldError(f fieldNumber, t wireType, err error) error {
 		WireType:    int(t),
 		Err:         err,
 	}
+}
+
+// An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
+// (The argument to Unmarshal must be a non-nil pointer to a struct.)
+type InvalidUnmarshalError struct {
+	Type reflect.Type
+}
+
+func (e *InvalidUnmarshalError) Error() string {
+	if e.Type == nil {
+		return "proto: Unmarshal(nil)"
+	}
+
+	if e.Type.Kind() != reflect.Pointer {
+		return "proto: Unmarshal(non-pointer" + e.Type.String() + ")"
+	}
+
+	elem := e.Type.Elem()
+	if elem.Kind() != reflect.Struct {
+		return "proto: Unmarshal(bad pointer" + e.Type.String() + ")"
+	}
+	return "proto: Unmarshal(nil " + e.Type.String() + ")"
 }

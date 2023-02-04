@@ -41,8 +41,14 @@ func Unmarshal(b []byte, v interface{}) error {
 	}
 
 	t, p := inspect(v)
-	t = t.Elem() // Unmarshal must be passed a pointer
-	c := cachedStructInfoOf(t)
+	if t.Kind() != reflect.Pointer || p == nil {
+		return &InvalidUnmarshalError{Type: t}
+	}
+	elem := t.Elem()
+	if elem.Kind() != reflect.Struct {
+		return &InvalidUnmarshalError{Type: t}
+	}
+	c := cachedStructInfoOf(elem)
 
 	n, err := c.decode(b, p)
 	if err != nil {
