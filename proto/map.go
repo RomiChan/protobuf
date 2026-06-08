@@ -36,11 +36,14 @@ func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 		if p == nil {
 			return 0
 		}
+		if reflect.NewAt(t, p).Elem().Len() == 0 {
+			return 0
+		}
+		if p = *(*unsafe.Pointer)(p); p == nil {
+			return 0
+		}
 
-		p = *(*unsafe.Pointer)(p)
-
-		n := 0
-		m := MapIter{}
+		n, m := 0, MapIter{}
 		defer m.Done()
 
 		for m.Init(pointer(t), p); m.HasNext(); m.Next() {
@@ -48,16 +51,12 @@ func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 			valSize := valCodec.size(m.Value(), f.valField)
 			n += mapTagSize + sizeOfVarint(uint64(keySize+valSize)) + keySize + valSize
 		}
-		if n == 0 {
-			n = mapTagSize + zeroSize
-		}
 		return n
 	}
 }
 
 func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 	mapTag := appendVarint(nil, f.wiretag)
-	zero := append(mapTag, 0)
 	keyCodec := f.keyField.codec
 	valCodec := f.valField.codec
 
@@ -65,29 +64,27 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 		if p == nil {
 			return b
 		}
-		p = *(*unsafe.Pointer)(p)
-
-		origLen := len(b)
+		if reflect.NewAt(t, p).Elem().Len() == 0 {
+			return b
+		}
+		if p = *(*unsafe.Pointer)(p); p == nil {
+			return b
+		}
 
 		m := MapIter{}
 		defer m.Done()
 
 		for m.Init(pointer(t), p); m.HasNext(); m.Next() {
-			key := m.Key()
-			val := m.Value()
+			key, val := m.Key(), m.Value()
 
 			keySize := keyCodec.size(key, f.keyField)
-			valSize := keyCodec.size(val, f.valField)
+			valSize := valCodec.size(val, f.valField)
 			elemSize := keySize + valSize
 
 			b = append(b, mapTag...)
 			b = appendVarint(b, uint64(elemSize))
 			b = keyCodec.encode(b, key, f.keyField)
 			b = valCodec.encode(b, val, f.valField)
-		}
-
-		if len(b) == origLen {
-			b = append(b, zero...)
 		}
 		return b
 	}

@@ -168,27 +168,27 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 			switch f.Type {
 			case optionFloat32Type:
 				field.codec = &float32OptionCodec
-			case optionUInt32Type:
+			case optionUInt32Type, optionInt32Type:
 				field.codec = &fixed32OptionCodec
 			}
 			switch baseKindOf(f.Type) {
-			case reflect.Uint32:
-				field.codec = &fixed32Codec
 			case reflect.Float32:
 				field.codec = &float32Codec
+			case reflect.Uint32, reflect.Int32:
+				field.codec = &fixed32Codec
 			}
 		case fixed64:
 			switch f.Type {
-			case optionUInt64Type:
-				field.codec = &fixed64OptionCodec
 			case optionFloat64Type:
 				field.codec = &float64OptionCodec
+			case optionUInt64Type, optionInt64Type:
+				field.codec = &fixed64OptionCodec
 			}
 			switch baseKindOf(f.Type) {
-			case reflect.Uint64:
-				field.codec = &fixed64Codec
 			case reflect.Float64:
 				field.codec = &float64Codec
+			case reflect.Uint64, reflect.Int64:
+				field.codec = &fixed64Codec
 			}
 		}
 		if field.codec == nil {
@@ -244,13 +244,13 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 				keyField.codec = w.codec(key, conf)
 
 				t, _ = parseStructTag(f.Tag.Get("protobuf_val"))
-				valFiled := &structField{wiretag: uint64(t.fieldNumber)<<3 | uint64(t.wireType)}
-				valFiled.tagsize = sizeOfVarint(valFiled.wiretag)
+				valField := &structField{wiretag: uint64(t.fieldNumber)<<3 | uint64(t.wireType)}
+				valField.tagsize = sizeOfVarint(valField.wiretag)
 				conf.zigzag = t.zigzag
-				valFiled.codec = w.codec(val, conf)
+				valField.codec = w.codec(val, conf)
 
 				m.keyField = keyField
-				m.valField = valFiled
+				m.valField = valField
 				field.codec = w.mapCodec(f.Type, m)
 
 			default:
