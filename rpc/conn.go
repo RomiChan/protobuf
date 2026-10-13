@@ -48,7 +48,7 @@ type Conn struct {
 // NewConn creates a client-side connection over rwc and starts its read
 // loop. rwc is closed when the connection is closed or breaks.
 func NewConn(rwc io.ReadWriteCloser) *Conn {
-	return newConn(rwc, nil)
+	return newConn(context.Background(), rwc, nil)
 }
 
 // Dial connects to address on the named network (see net.Dial) and
@@ -59,14 +59,14 @@ func Dial(ctx context.Context, network, address string) (*Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newConn(nc, nil), nil
+	return newConn(context.Background(), nc, nil), nil
 }
 
-func newConn(rwc io.ReadWriteCloser, h Handler) *Conn {
+func newConn(ctx context.Context, rwc io.ReadWriteCloser, h Handler) *Conn {
 	c := &Conn{
 		rwc:     rwc,
 		handler: h,
-		ctx:     context.Background(),
+		ctx:     ctx,
 		pending: make(map[int64]chan callResult),
 		done:    make(chan struct{}),
 	}

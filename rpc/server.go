@@ -20,8 +20,7 @@ func NewServer(h Handler) *Server {
 // ServeConn serves a single connection, blocking until the connection
 // terminates. rwc is closed when ServeConn returns.
 func (s *Server) ServeConn(ctx context.Context, rwc io.ReadWriteCloser) error {
-	c := newConn(rwc, s.handler)
-	c.ctx = ctx
+	c := newConn(ctx, rwc, s.handler)
 	<-c.Done()
 	return nil
 }
