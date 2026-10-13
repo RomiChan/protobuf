@@ -60,6 +60,9 @@ func (w *walker) codec(t reflect.Type, conf *walkerConfig) *codec {
 		}
 		return &stringCodec
 	case reflect.Slice:
+		if t == rawMessageType {
+			return &rawCodec
+		}
 		elem := t.Elem()
 		switch elem.Kind() {
 		case reflect.Uint8:
@@ -223,6 +226,10 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 				field.codec = w.codec(f.Type, conf)
 
 			case reflect.Slice:
+				if f.Type == rawMessageType {
+					field.codec = &rawCodec
+					break
+				}
 				elem := f.Type.Elem()
 				if elem.Kind() == reflect.Uint8 { // []byte
 					field.codec = &bytesCodec
@@ -322,6 +329,9 @@ func (w *walker) required(t reflect.Type, conf *walkerConfig) *codec {
 	case reflect.String:
 		return &stringRequiredCodec
 	case reflect.Slice:
+		if t == rawMessageType {
+			return &rawCodec
+		}
 		elem := t.Elem()
 		switch elem.Kind() {
 		case reflect.Uint8:

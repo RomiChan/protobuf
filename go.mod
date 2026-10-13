@@ -1,6 +1,6 @@
 module github.com/RomiChan/protobuf
 
-go 1.26
+go 1.27
 
 require (
 	github.com/RomiChan/syncx v0.0.0-20240418144900-b7402ffdebc7
