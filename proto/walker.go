@@ -233,21 +233,18 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 				}
 
 			case reflect.Map:
-				conf.required = true // map key and val should be encoded always
 				key, val := f.Type.Key(), f.Type.Elem()
 				m := &mapField{wiretag: field.wiretag}
 
-				t, _ := parseStructTag(f.Tag.Get("protobuf_key"))
+				t := mapElementTag(f, "protobuf_key")
 				keyField := &structField{wiretag: uint64(t.fieldNumber)<<3 | uint64(t.wireType)}
 				keyField.tagsize = sizeOfVarint(keyField.wiretag)
-				conf.zigzag = t.zigzag
-				keyField.codec = w.codec(key, conf)
+				keyField.codec = w.mapElementCodec(key, t)
 
-				t, _ = parseStructTag(f.Tag.Get("protobuf_val"))
+				t = mapElementTag(f, "protobuf_val")
 				valField := &structField{wiretag: uint64(t.fieldNumber)<<3 | uint64(t.wireType)}
 				valField.tagsize = sizeOfVarint(valField.wiretag)
-				conf.zigzag = t.zigzag
-				valField.codec = w.codec(val, conf)
+				valField.codec = w.mapElementCodec(val, t)
 
 				m.keyField = keyField
 				m.valField = valField

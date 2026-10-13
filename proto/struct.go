@@ -65,19 +65,11 @@ func (info *structInfo) decode(b []byte, p unsafe.Pointer) (int, error) {
 		f := info.fieldIndex[fieldNumber]
 		if f == nil {
 			skip := 0
-			size := uint64(0)
 			switch wireType {
 			case varint:
 				_, skip, err = decodeVarint(b[offset:])
 			case varlen:
-				size, skip, err = decodeVarint(b[offset:])
-				if err == nil {
-					if size > uint64(len(b)-skip) {
-						err = io.ErrUnexpectedEOF
-					} else {
-						skip += int(size)
-					}
-				}
+				_, skip, err = decodeVarlen(b[offset:])
 			case fixed32:
 				skip = 4
 			case fixed64:

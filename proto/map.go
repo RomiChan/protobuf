@@ -5,11 +5,7 @@ import (
 	"reflect"
 	"sync"
 	"unsafe"
-
-	. "github.com/RomiChan/protobuf/internal/runtime_reflect"
 )
-
-const zeroSize = 1 // sizeOfVarint(0)
 
 type mapField struct {
 	wiretag  uint64
@@ -17,17 +13,69 @@ type mapField struct {
 	valField *structField
 }
 
+// Map elements are not addressable. Reuse typed storage so the pointer-based
+// codecs can read entries without allocating a key and value on every iteration.
+type mapEntry struct {
+	key    reflect.Value
+	elem   reflect.Value
+	keyPtr unsafe.Pointer
+	valPtr unsafe.Pointer
+}
+
+func (e *mapEntry) clear() {
+	e.key.SetZero()
+	e.elem.SetZero()
+}
+
+func mapElementTag(f reflect.StructField, name string) structTag {
+	tag, ok := f.Tag.Lookup(name)
+	if !ok {
+		panic(fmt.Sprintf("proto: map field %s is missing the %s tag", f.Name, name))
+	}
+	t, err := parseStructTag(tag)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
+func (w *walker) mapElementCodec(t reflect.Type, tag structTag) *codec {
+	// Integer map elements can use fixed-width wire encoding as well as varints.
+	// Both encoding and decoding must use the codec selected by the field tag.
+	switch tag.wireType {
+	case fixed32:
+		if t.Kind() == reflect.Int32 || t.Kind() == reflect.Uint32 {
+			return &fixed32RequiredCodec
+		}
+	case fixed64:
+		if t.Kind() == reflect.Int64 || t.Kind() == reflect.Uint64 {
+			return &fixed64RequiredCodec
+		}
+	}
+	return w.codec(t, &walkerConfig{required: true, zigzag: tag.zigzag})
+}
+
 func (w *walker) mapCodec(t reflect.Type, f *mapField) *codec {
 	m := new(codec)
 	w.codecs[t] = m
 
-	m.size = mapSizeFuncOf(t, f)
-	m.encode = mapEncodeFuncOf(t, f)
-	m.decode = mapDecodeFuncOf(t, f, w)
+	pool := &sync.Pool{New: func() any {
+		key := reflect.New(t.Key()).Elem()
+		elem := reflect.New(t.Elem()).Elem()
+		return &mapEntry{
+			key: key, elem: elem,
+			keyPtr: key.Addr().UnsafePointer(),
+			valPtr: elem.Addr().UnsafePointer(),
+		}
+	}}
+
+	m.size = mapSizeFuncOf(t, f, pool)
+	m.encode = mapEncodeFuncOf(t, f, pool)
+	m.decode = mapDecodeFuncOf(t, f, pool)
 	return m
 }
 
-func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
+func mapSizeFuncOf(t reflect.Type, f *mapField, pool *sync.Pool) sizeFunc {
 	mapTagSize := sizeOfVarint(f.wiretag)
 	keyCodec := f.keyField.codec
 	valCodec := f.valField.codec
@@ -36,26 +84,32 @@ func mapSizeFuncOf(t reflect.Type, f *mapField) sizeFunc {
 		if p == nil {
 			return 0
 		}
-		if reflect.NewAt(t, p).Elem().Len() == 0 {
-			return 0
-		}
-		if p = *(*unsafe.Pointer)(p); p == nil {
+		mv := reflect.NewAt(t, p).Elem()
+		if mv.Len() == 0 {
 			return 0
 		}
 
-		n, m := 0, MapIter{}
-		defer m.Done()
+		entry := pool.Get().(*mapEntry)
+		defer func() {
+			entry.clear()
+			pool.Put(entry)
+		}()
+		n := 0
+		var iter reflect.MapIter
+		iter.Reset(mv)
 
-		for m.Init(pointer(t), p); m.HasNext(); m.Next() {
-			keySize := keyCodec.size(m.Key(), f.keyField)
-			valSize := valCodec.size(m.Value(), f.valField)
+		for iter.Next() {
+			entry.key.SetIterKey(&iter)
+			entry.elem.SetIterValue(&iter)
+			keySize := keyCodec.size(entry.keyPtr, f.keyField)
+			valSize := valCodec.size(entry.valPtr, f.valField)
 			n += mapTagSize + sizeOfVarint(uint64(keySize+valSize)) + keySize + valSize
 		}
 		return n
 	}
 }
 
-func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
+func mapEncodeFuncOf(t reflect.Type, f *mapField, pool *sync.Pool) encodeFunc {
 	mapTag := appendVarint(nil, f.wiretag)
 	keyCodec := f.keyField.codec
 	valCodec := f.valField.codec
@@ -64,18 +118,23 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 		if p == nil {
 			return b
 		}
-		if reflect.NewAt(t, p).Elem().Len() == 0 {
-			return b
-		}
-		if p = *(*unsafe.Pointer)(p); p == nil {
+		mv := reflect.NewAt(t, p).Elem()
+		if mv.Len() == 0 {
 			return b
 		}
 
-		m := MapIter{}
-		defer m.Done()
+		entry := pool.Get().(*mapEntry)
+		defer func() {
+			entry.clear()
+			pool.Put(entry)
+		}()
+		var iter reflect.MapIter
+		iter.Reset(mv)
 
-		for m.Init(pointer(t), p); m.HasNext(); m.Next() {
-			key, val := m.Key(), m.Value()
+		for iter.Next() {
+			entry.key.SetIterKey(&iter)
+			entry.elem.SetIterValue(&iter)
+			key, val := entry.keyPtr, entry.valPtr
 
 			keySize := keyCodec.size(key, f.keyField)
 			valSize := valCodec.size(val, f.valField)
@@ -90,52 +149,77 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField) encodeFunc {
 	}
 }
 
-func formatWireTag(wire uint64) reflect.StructTag {
-	return reflect.StructTag(fmt.Sprintf(`protobuf:"%s,%d,opt"`, wireType(wire&7), wire>>3))
+func mapDecodeFuncOf(t reflect.Type, m *mapField, pool *sync.Pool) decodeFunc {
+	return func(b []byte, p unsafe.Pointer) (int, error) {
+		mv := reflect.NewAt(t, p).Elem()
+		if mv.IsNil() {
+			mv.Set(reflect.MakeMapWithSize(t, 10))
+		}
+
+		data, n, err := decodeVarlen(b)
+		if err != nil {
+			return n, err
+		}
+		entry := pool.Get().(*mapEntry)
+		defer func() {
+			entry.clear()
+			pool.Put(entry)
+		}()
+		read, err := m.decodeEntry(data, entry)
+		if err != nil {
+			return n - len(data) + read, err
+		}
+		mv.SetMapIndex(entry.key, entry.elem)
+		return n, nil
+	}
 }
 
-func mapDecodeFuncOf(t reflect.Type, m *mapField, w *walker) decodeFunc {
-	structType := reflect.StructOf([]reflect.StructField{
-		{Name: "Key", Type: t.Key(), Tag: formatWireTag(m.keyField.wiretag)},
-		{Name: "Elem", Type: t.Elem(), Tag: formatWireTag(m.valField.wiretag)},
-	})
-
-	info := w.structInfo(structType)
-	structPool := new(sync.Pool)
-	structZero := pointer(reflect.Zero(structType).Interface())
-
-	valueType := t.Elem()
-	valueOffset := structType.Field(1).Offset
-
-	mtype := pointer(t)
-	stype := pointer(structType)
-	vtype := pointer(valueType)
-
-	return func(b []byte, p unsafe.Pointer) (int, error) {
-		m := (*unsafe.Pointer)(p)
-		if *m == nil {
-			*m = MakeMap(mtype, 10)
-		}
-		if len(b) == 0 {
-			return 0, nil
-		}
-
-		s := pointer(structPool.Get())
-		if s == nil {
-			s = unsafe.Pointer(reflect.New(structType).Pointer())
-		}
-
-		_, nl, err := decodeVarint(b)
+func (m *mapField) decodeEntry(b []byte, entry *mapEntry) (int, error) {
+	offset := 0
+	for offset < len(b) {
+		number, wire, n, err := decodeTag(b[offset:])
+		offset += n
 		if err != nil {
-			return 0, err
+			return offset, err
 		}
-		n, err := info.decode(b[nl:], s)
-		if err == nil {
-			v := MapAssign(mtype, *m, s)
-			Assign(vtype, v, unsafe.Pointer(uintptr(s)+valueOffset))
+
+		var f *structField
+		var p unsafe.Pointer
+		switch number {
+		case m.keyField.fieldNumber():
+			f, p = m.keyField, entry.keyPtr
+		case m.valField.fieldNumber():
+			f, p = m.valField, entry.valPtr
 		}
-		Assign(stype, s, structZero)
-		structPool.Put(s)
-		return n + nl, err
+		if f != nil && wire != f.wireType() {
+			return offset, fieldError(number, wire, fmt.Errorf("expected wire type %d", f.wireType()))
+		}
+
+		// Bound each field before decoding, especially message values which must
+		// not consume the next key/value field. Unknown fields are skipped here.
+		switch wire {
+		case varint:
+			_, n, err = decodeVarint(b[offset:])
+		case varlen:
+			_, n, err = decodeVarlen(b[offset:])
+		case fixed32:
+			_, n, err = decodeLE32(b[offset:])
+		case fixed64:
+			_, n, err = decodeLE64(b[offset:])
+		default:
+			err = ErrWireTypeUnknown
+		}
+		if err != nil {
+			return offset, fieldError(number, wire, err)
+		}
+		if f != nil {
+			// Use the original codec so zigzag and named types are preserved.
+			read, err := f.codec.decode(b[offset:offset+n], p)
+			if err != nil {
+				return offset + read, fieldError(number, wire, err)
+			}
+		}
+		offset += n
 	}
+	return offset, nil
 }

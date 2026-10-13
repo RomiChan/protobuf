@@ -69,10 +69,10 @@ func BenchmarkDecodeMessage(b *testing.B) {
 
 func BenchmarkDecodeMap(b *testing.B) {
 	type message struct {
-		M map[int32]int32 `protobuf:"bytes,1,opt"`
+		M map[int32]int32 `protobuf:"bytes,1,opt" protobuf_key:"varint,1,opt" protobuf_val:"varint,2,opt"`
 	}
 
-	data, _ := Marshal(message{
+	data, err := Marshal(&message{
 		M: map[int32]int32{
 			0: 0,
 			1: 1,
@@ -81,9 +81,14 @@ func BenchmarkDecodeMap(b *testing.B) {
 			4: 4,
 		},
 	})
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	msg := message{}
 	b.SetBytes(int64(len(data)))
+	b.ReportAllocs()
+	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		if err := Unmarshal(data, &msg); err != nil {
