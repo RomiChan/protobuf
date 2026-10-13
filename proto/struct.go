@@ -92,45 +92,10 @@ func (info *structInfo) decode(b []byte, p unsafe.Pointer) (int, error) {
 			return offset, fieldError(fieldNumber, wireType, fmt.Errorf("expected wire type %d", f.wireType()))
 		}
 
-		// `data` will only contain the section of the input buffer where
-		// the data for the next field is available. This is necessary to
-		// limit how many bytes will be consumed by embedded messages.
-		var data []byte
-		switch wireType {
-		case varint:
-			_, n, err := decodeVarint(b[offset:])
-			if err != nil {
-				return offset, fieldError(fieldNumber, wireType, err)
-			}
-			data = b[offset : offset+n]
-
-		case varlen:
-			l, n, err := decodeVarint(b[offset:])
-			if err != nil {
-				return offset + n, fieldError(fieldNumber, wireType, err)
-			}
-			if l > uint64(len(b)-(offset+n)) {
-				return len(b), fieldError(fieldNumber, wireType, io.ErrUnexpectedEOF)
-			}
-			data = b[offset : offset+n+int(l)]
-
-		case fixed32:
-			if (offset + 4) > len(b) {
-				return len(b), fieldError(fieldNumber, wireType, io.ErrUnexpectedEOF)
-			}
-			data = b[offset : offset+4]
-
-		case fixed64:
-			if (offset + 8) > len(b) {
-				return len(b), fieldError(fieldNumber, wireType, io.ErrUnexpectedEOF)
-			}
-			data = b[offset : offset+8]
-
-		default:
-			return offset, fieldError(fieldNumber, wireType, ErrWireTypeUnknown)
-		}
-
-		n, err = f.codec.decode(data, f.pointer(p))
+		// Codecs consume exactly the bytes of their field (length-delimited
+		// codecs consume their own length prefix), so the returned n bounds
+		// embedded messages without decoding the value twice.
+		n, err = f.codec.decode(b[offset:], f.pointer(p))
 		offset += n
 		if err != nil {
 			return offset, fieldError(fieldNumber, wireType, err)

@@ -109,12 +109,12 @@ func (w *walker) structCodec(t reflect.Type) *codec {
 		if *v == nil {
 			*v = unsafe.Pointer(reflect.New(elem).Pointer())
 		}
-		_, n, err := decodeVarint(b)
+		data, n, err := decodeVarlen(b)
 		if err != nil {
 			return n, err
 		}
-		l, err := info.decode(b[n:], *v)
-		return n + l, err
+		m, err := info.decode(data, *v)
+		return n - len(data) + m, err
 	}
 	actualCodec, _ := codecCache.LoadOrStore(pointer(t), c)
 	return actualCodec.(*codec)

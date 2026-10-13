@@ -191,35 +191,39 @@ func (m *mapField) decodeEntry(b []byte, entry *mapEntry) (int, error) {
 		case m.valField.fieldNumber():
 			f, p = m.valField, entry.valPtr
 		}
-		if f != nil && wire != f.wireType() {
+		if f == nil {
+			// Skip unknown fields.
+			switch wire {
+			case varint:
+				_, n, err = decodeVarint(b[offset:])
+			case varlen:
+				_, n, err = decodeVarlen(b[offset:])
+			case fixed32:
+				_, n, err = decodeLE32(b[offset:])
+			case fixed64:
+				_, n, err = decodeLE64(b[offset:])
+			default:
+				err = ErrWireTypeUnknown
+			}
+			if err != nil {
+				return offset, fieldError(number, wire, err)
+			}
+			offset += n
+			continue
+		}
+
+		if wire != f.wireType() {
 			return offset, fieldError(number, wire, fmt.Errorf("expected wire type %d", f.wireType()))
 		}
 
-		// Bound each field before decoding, especially message values which must
-		// not consume the next key/value field. Unknown fields are skipped here.
-		switch wire {
-		case varint:
-			_, n, err = decodeVarint(b[offset:])
-		case varlen:
-			_, n, err = decodeVarlen(b[offset:])
-		case fixed32:
-			_, n, err = decodeLE32(b[offset:])
-		case fixed64:
-			_, n, err = decodeLE64(b[offset:])
-		default:
-			err = ErrWireTypeUnknown
-		}
+		// Use the original codec so zigzag and named types are preserved. The
+		// codec consumes exactly its own bytes (message values consume their
+		// own length prefix), so no pre-bounding pass is needed.
+		read, err := f.codec.decode(b[offset:], p)
+		offset += read
 		if err != nil {
 			return offset, fieldError(number, wire, err)
 		}
-		if f != nil {
-			// Use the original codec so zigzag and named types are preserved.
-			read, err := f.codec.decode(b[offset:offset+n], p)
-			if err != nil {
-				return offset + read, fieldError(number, wire, err)
-			}
-		}
-		offset += n
 	}
 	return offset, nil
 }
