@@ -1,50 +1,17 @@
 package proto
 
 import (
-	"unsafe"
+	"github.com/RomiChan/protobuf/internal/option"
 )
 
-type Option[T any] struct {
-	some  bool
-	value T
-}
+type Option[T any] = option.Option[T]
 
 func Some[T any](val T) Option[T] {
-	return Option[T]{
-		some:  true,
-		value: val,
-	}
+	return option.Some(val)
 }
 
 func None[T any]() Option[T] {
-	return Option[T]{some: false}
-}
-
-func (o Option[T]) IsSome() bool {
-	return o.some
-}
-
-func (o Option[T]) IsNone() bool {
-	return !o.some
-}
-
-func (o Option[T]) Unwrap() T {
-	if o.IsSome() {
-		return o.value
-	}
-	var zero T
-	return zero
-}
-
-func (o Option[T]) UnwrapOr(defaultValue T) T {
-	if o.IsSome() {
-		return o.value
-	}
-	return defaultValue
-}
-
-func (o *Option[T]) unsafePointer() unsafe.Pointer {
-	return unsafe.Pointer(&o.value)
+	return option.None[T]()
 }
 
 // Bool stores v in a new bool value and returns a pointer to it.

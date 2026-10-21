@@ -38,7 +38,9 @@ func TestUnarshalFromShortBuffer(t *testing.T) {
 }
 
 func BenchmarkDecodeTag(b *testing.B) {
-	c := appendTag(nil, 1, varint)
+	c := make([]byte, 10)
+	n := writeTag(c, 0, 1, varint)
+	c = c[:n]
 
 	for i := 0; i < b.N; i++ {
 		decodeTag(c)

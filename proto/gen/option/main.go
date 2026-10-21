@@ -24,23 +24,23 @@ var {{.Codec}}OptionCodec = codec{
 func sizeOf{{.Name}}Option(p unsafe.Pointer, f *structField) int {
 	o := (*Option[{{.Type}}])(p)
 	if o.IsSome() {
-		return sizeOf{{.Name}}Required(o.unsafePointer(), f)
+		return sizeOf{{.Name}}Required(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encode{{.Name}}Option(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encode{{.Name}}Option(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[{{.Type}}])(p)
 	if o.IsSome() {
-		return encode{{.Name}}Required(b, o.unsafePointer(), f)
+		return encode{{.Name}}Required(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decode{{.Name}}Option(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[{{.Type}}])(p)
-	v.some = true
-	return decode{{.Name}}(b, v.unsafePointer())
+	v.MarkSome()
+	return decode{{.Name}}(b, v.UnsafePointer())
 }
 
 {{end}}

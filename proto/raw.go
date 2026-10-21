@@ -40,14 +40,14 @@ func sizeOfRaw(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeRaw(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeRaw(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	v := *(*RawMessage)(p)
 	if v != nil {
-		b = appendVarint(b, f.wiretag)
-		b = appendVarint(b, uint64(len(v)))
-		b = append(b, v...)
+		i = writeVarint(b, i, f.wiretag)
+		i = writeVarint(b, i, uint64(len(v)))
+		i += copy(b[i:], v)
 	}
-	return b
+	return i
 }
 
 func decodeRaw(b []byte, p unsafe.Pointer) (int, error) {

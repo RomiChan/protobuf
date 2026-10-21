@@ -3,6 +3,8 @@ package proto
 import (
 	"reflect"
 	"unsafe"
+
+	"github.com/RomiChan/protobuf/internal/vm"
 )
 
 var (
@@ -91,21 +93,55 @@ func (w *walker) structCodec(t reflect.Type) *codec {
 	c.size = func(p unsafe.Pointer, f *structField) int {
 		p = deref(p)
 		if p != nil {
-			n := info.size(p)
+			n := info.sizeNoTape(p)
 			n += sizeOfVarint(uint64(n)) + f.tagsize
 			return n
 		}
 		return 0
 	}
-	c.encode = func(b []byte, p unsafe.Pointer, f *structField) []byte {
+	c.encode = func(b []byte, i int, p unsafe.Pointer, f *structField) int {
 		p = deref(p)
 		if p != nil {
-			b = appendVarint(b, f.wiretag)
-			n := info.size(p)
-			b = appendVarint(b, uint64(n))
-			return info.encode(b, p)
+			i = writeVarint(b, i, f.wiretag)
+			n := info.sizeNoTape(p)
+			i = writeVarint(b, i, uint64(n))
+			return info.encode(b, i, p, nil)
 		}
-		return b
+		return i
+	}
+	// Tape-aware variants: the body size is recorded once by the size pass
+	// and replayed here, which also covers elements of repeated message
+	// fields (slice codecs forward their element codec's tape funcs).
+	c.isMessage = true
+	c.sizeT = func(p unsafe.Pointer, f *structField, t *vm.Tape) int {
+		p = deref(p)
+		if p == nil {
+			return 0
+		}
+		idx := 0
+		if t != nil {
+			idx = t.Reserve()
+		}
+		n := info.sizeTape(p, t)
+		if t != nil {
+			t.Set(idx, n)
+		}
+		return n + sizeOfVarint(uint64(n)) + f.tagsize
+	}
+	c.encodeT = func(b []byte, i int, p unsafe.Pointer, f *structField, t *vm.Tape) int {
+		p = deref(p)
+		if p == nil {
+			return i
+		}
+		i = writeVarint(b, i, f.wiretag)
+		var n int
+		if t != nil {
+			n = t.Next()
+		} else {
+			n = info.sizeNoTape(p)
+		}
+		i = writeVarint(b, i, uint64(n))
+		return info.encode(b, i, p, t)
 	}
 	c.decode = func(b []byte, p unsafe.Pointer) (int, error) {
 		v := (*unsafe.Pointer)(p)
@@ -134,6 +170,60 @@ func baseTypeOf(t reflect.Type) reflect.Type {
 	return t
 }
 
+// scalarKindOf classifies scalar fields (including pointer-wrapped ones) for
+// the encode VM. It must mirror the codec selection in walker.structInfo and
+// walker.codec exactly; vm.Fallback keeps the closure path.
+func scalarKindOf(typ reflect.Type, tag structTag) vm.Kind {
+	base := typ
+	var flag vm.Kind
+	if base.Kind() == reflect.Ptr {
+		base = base.Elem()
+		flag = vm.PtrFlag
+	}
+	switch tag.wireType {
+	case fixed32:
+		switch base.Kind() {
+		case reflect.Float32:
+			return flag | vm.Float32
+		case reflect.Uint32, reflect.Int32:
+			return flag | vm.Fixed32
+		}
+	case fixed64:
+		switch base.Kind() {
+		case reflect.Float64:
+			return flag | vm.Float64
+		case reflect.Uint64, reflect.Int64:
+			return flag | vm.Fixed64
+		}
+	default: // varint / varlen
+		switch base.Kind() {
+		case reflect.Bool:
+			return flag | vm.Bool
+		case reflect.Int32:
+			if tag.zigzag {
+				return flag | vm.Zigzag32
+			}
+			return flag | vm.Int32
+		case reflect.Int64:
+			if tag.zigzag {
+				return flag | vm.Zigzag64
+			}
+			return flag | vm.Int64
+		case reflect.Uint32:
+			return flag | vm.Uint32
+		case reflect.Uint64:
+			return flag | vm.Uint64
+		case reflect.Float32:
+			return flag | vm.Float32
+		case reflect.Float64:
+			return flag | vm.Float64
+		case reflect.String:
+			return flag | vm.String
+		}
+	}
+	return vm.Fallback
+}
+
 func (w *walker) structInfo(t reflect.Type) *structInfo {
 	if info, ok := structInfoCache.Load(pointer(t)); ok {
 		return info
@@ -146,6 +236,7 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 	w.infos[t] = info
 	numField := t.NumField()
 	fields := make([]*structField, 0, numField)
+	ops := make([]vm.Field, 0, numField)
 	for i := 0; i < numField; i++ {
 		f := t.Field(i)
 		if f.PkgPath != "" {
@@ -166,54 +257,75 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 			panic(err)
 		}
 		field.wiretag = uint64(t.fieldNumber)<<3 | uint64(t.wireType)
+
+		// kind classifies the field for the encode VM (internal/vm); it is
+		// assigned at the same site as field.codec so the two stay in sync.
+		var kind vm.Kind
+		var msgEnc func(b []byte, i int, p unsafe.Pointer, t *vm.Tape) int
 		switch t.wireType {
 		case fixed32:
 			switch f.Type {
 			case optionFloat32Type:
 				field.codec = &float32OptionCodec
+				kind = vm.OptionFlag | vm.Float32
 			case optionUInt32Type, optionInt32Type:
 				field.codec = &fixed32OptionCodec
+				kind = vm.OptionFlag | vm.Fixed32
 			}
 			switch baseKindOf(f.Type) {
 			case reflect.Float32:
 				field.codec = &float32Codec
+				kind = vm.Float32
 			case reflect.Uint32, reflect.Int32:
 				field.codec = &fixed32Codec
+				kind = vm.Fixed32
 			}
 		case fixed64:
 			switch f.Type {
 			case optionFloat64Type:
 				field.codec = &float64OptionCodec
+				kind = vm.OptionFlag | vm.Float64
 			case optionUInt64Type, optionInt64Type:
 				field.codec = &fixed64OptionCodec
+				kind = vm.OptionFlag | vm.Fixed64
 			}
 			switch baseKindOf(f.Type) {
 			case reflect.Float64:
 				field.codec = &float64Codec
+				kind = vm.Float64
 			case reflect.Uint64, reflect.Int64:
 				field.codec = &fixed64Codec
+				kind = vm.Fixed64
 			}
 		}
 		if field.codec == nil {
 			switch f.Type {
 			case optionBoolType:
 				field.codec = &boolOptionCodec
+				kind = vm.OptionFlag | vm.Bool
 			case optionInt32Type:
 				field.codec = &int32OptionCodec
+				kind = vm.OptionFlag | vm.Int32
 				if t.zigzag {
 					field.codec = &zigzag32OptionCodec
+					kind = vm.OptionFlag | vm.Zigzag32
 				}
 			case optionInt64Type:
 				field.codec = &int64OptionCodec
+				kind = vm.OptionFlag | vm.Int64
 				if t.zigzag {
 					field.codec = &zigzag64OptionCodec
+					kind = vm.OptionFlag | vm.Zigzag64
 				}
 			case optionUInt32Type:
 				field.codec = &uint32OptionCodec
+				kind = vm.OptionFlag | vm.Uint32
 			case optionUInt64Type:
 				field.codec = &uint64OptionCodec
+				kind = vm.OptionFlag | vm.Uint64
 			case optionStringType:
 				field.codec = &stringOptionCodec
+				kind = vm.OptionFlag | vm.String
 			}
 		}
 		if field.codec == nil {
@@ -224,19 +336,46 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 			switch baseKindOf(f.Type) {
 			case reflect.Struct:
 				field.codec = w.codec(f.Type, conf)
+				// Message field: tag + length prefix + recursive encode. The
+				// body size comes from the tape recorded by the size pass, or
+				// is recomputed when there is no tape.
+				minfo, wiretag := w.structInfo(baseTypeOf(f.Type)), field.wiretag
+				field.info = minfo
+				info.hasMessage = true
+				msgEnc = func(b []byte, i int, p unsafe.Pointer, t *vm.Tape) int {
+					if mp := *(*unsafe.Pointer)(p); mp != nil {
+						i = writeVarint(b, i, wiretag)
+						var n int
+						if t != nil {
+							n = t.Next()
+						} else {
+							n = minfo.sizeNoTape(mp)
+						}
+						i = writeVarint(b, i, uint64(n))
+						i = minfo.encode(b, i, mp, t)
+					}
+					return i
+				}
 
 			case reflect.Slice:
 				if f.Type == rawMessageType {
 					field.codec = &rawCodec
+					kind = vm.Bytes
 					break
 				}
 				elem := f.Type.Elem()
 				if elem.Kind() == reflect.Uint8 { // []byte
 					field.codec = &bytesCodec
+					kind = vm.Bytes
 				} else {
 					conf.required = true
 					field.codec = w.codec(elem, conf)
 					field.codec = sliceCodecOf(f.Type, field.codec, w)
+					if field.codec.sizeT != nil {
+						// Repeated message field: its elements are sized and
+						// encoded through the tape as well.
+						info.hasMessage = true
+					}
 				}
 
 			case reflect.Map:
@@ -259,9 +398,30 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 
 			default:
 				field.codec = w.codec(f.Type, conf)
+				kind = scalarKindOf(f.Type, t)
 			}
 		}
 		field.tagsize = sizeOfVarint(field.wiretag)
+
+		// Compile the encode op for the VM (internal/vm).
+		op := vm.Field{
+			Offset:  f.Offset,
+			Wiretag: field.wiretag,
+			Kind:    kind,
+		}
+		switch {
+		case msgEnc != nil:
+			op.Enc = msgEnc
+		case kind == vm.Fallback:
+			c, fld := field.codec, &field
+			op.Enc = func(b []byte, i int, fp unsafe.Pointer, t *vm.Tape) int {
+				if t != nil && c.encodeT != nil {
+					return c.encodeT(b, i, fp, fld, t)
+				}
+				return c.encode(b, i, fp, fld)
+			}
+		}
+		ops = append(ops, op)
 		fields = append(fields, &field)
 	}
 
@@ -270,9 +430,29 @@ func (w *walker) structInfo(t reflect.Type) *structInfo {
 	copy(fields2, fields)
 	info.fields = fields2
 
+	ops2 := make([]vm.Field, len(ops))
+	copy(ops2, ops)
+	info.ops = ops2
+
 	info.fieldIndex = make(map[fieldNumber]*structField, len(info.fields))
+	maxFieldNumber := fieldNumber(0)
 	for _, f := range info.fields {
 		info.fieldIndex[f.fieldNumber()] = f
+		if n := f.fieldNumber(); n > maxFieldNumber {
+			maxFieldNumber = n
+		}
+	}
+
+	// Proto field numbers are usually dense small integers; a direct-indexed
+	// table avoids a hash lookup per decoded field. Only cover the field
+	// numbers with a single-byte tag (<= 16); sparse or high-numbered
+	// messages keep using the map.
+	if maxFieldNumber > 0 && maxFieldNumber <= 16 {
+		info.dense = make([]*structField, maxFieldNumber)
+		for _, f := range info.fields {
+			info.dense[f.fieldNumber()-1] = f
+		}
+		info.fieldIndex = nil
 	}
 
 	structInfoCache.Store(pointer(t), info)
@@ -357,12 +537,12 @@ func pointerSizeFuncOf(_ reflect.Type, c *codec) sizeFunc {
 }
 
 func pointerEncodeFuncOf(_ reflect.Type, c *codec) encodeFunc {
-	return func(b []byte, p unsafe.Pointer, f *structField) []byte {
+	return func(b []byte, i int, p unsafe.Pointer, f *structField) int {
 		p = deref(p)
 		if p != nil {
-			return c.encode(b, p, f)
+			return c.encode(b, i, p, f)
 		}
-		return b
+		return i
 	}
 }
 

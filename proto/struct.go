@@ -6,11 +6,21 @@ import (
 	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/RomiChan/protobuf/internal/vm"
 )
 
 type structInfo struct {
 	fields     []*structField
+	ops        []vm.Field
 	fieldIndex map[fieldNumber]*structField
+	// dense is indexed by fieldNumber-1 when the field numbers are small
+	// enough; nil entries are holes. It replaces the hash lookup on the
+	// decode hot path.
+	dense []*structField
+	// hasMessage reports whether any field is a nested message, i.e. whether
+	// a size tape is needed to avoid recomputing subtree sizes.
+	hasMessage bool
 }
 
 type structField struct {
@@ -18,6 +28,8 @@ type structField struct {
 	wiretag uint64
 	codec   *codec
 	tagsize int
+	// info is the nested message's structInfo, set only for message fields.
+	info *structInfo
 }
 
 func (f *structField) fieldNumber() fieldNumber {
@@ -32,25 +44,57 @@ func (f *structField) pointer(p unsafe.Pointer) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + f.offset)
 }
 
-func (info *structInfo) size(p unsafe.Pointer) int {
+// sizeNoTape is the hot path used by Size and by every subtree below a leaf
+// message; it is kept free of tape bookkeeping.
+func (info *structInfo) sizeNoTape(p unsafe.Pointer) int {
 	if p == nil {
 		return 0
 	}
 	n := 0
 	for _, f := range info.fields {
-		n += f.codec.size(f.pointer(p), f)
+		fp := f.pointer(p)
+		if f.info != nil {
+			if mp := *(*unsafe.Pointer)(fp); mp != nil {
+				cn := f.info.sizeNoTape(mp)
+				n += f.tagsize + sizeOfVarint(uint64(cn)) + cn
+			}
+			continue
+		}
+		n += f.codec.size(fp, f)
 	}
 	return n
 }
 
-func (info *structInfo) encode(b []byte, p unsafe.Pointer) []byte {
-	if p == nil {
-		return b
-	}
+// sizeTape records the body size of every nested message on t (in preorder,
+// via reserve-then-set) so the encode pass can replay it instead of recomputing
+// the subtree.
+func (info *structInfo) sizeTape(p unsafe.Pointer, t *vm.Tape) int {
+	n := 0
 	for _, f := range info.fields {
-		b = f.codec.encode(b, f.pointer(p), f)
+		fp := f.pointer(p)
+		if f.info != nil {
+			if mp := *(*unsafe.Pointer)(fp); mp != nil {
+				idx := t.Reserve()
+				cn := f.info.sizeTape(mp, t)
+				t.Set(idx, cn)
+				n += f.tagsize + sizeOfVarint(uint64(cn)) + cn
+			}
+			continue
+		}
+		if f.codec.sizeT != nil {
+			n += f.codec.sizeT(fp, f, t)
+		} else {
+			n += f.codec.size(fp, f)
+		}
 	}
-	return b
+	return n
+}
+
+func (info *structInfo) encode(b []byte, i int, p unsafe.Pointer, t *vm.Tape) int {
+	if p == nil {
+		return i
+	}
+	return vm.Encode(b, i, p, info.ops, t)
 }
 
 func (info *structInfo) decode(b []byte, p unsafe.Pointer) (int, error) {
@@ -62,7 +106,14 @@ func (info *structInfo) decode(b []byte, p unsafe.Pointer) (int, error) {
 			return offset, err
 		}
 
-		f := info.fieldIndex[fieldNumber]
+		var f *structField
+		if d := info.dense; d != nil {
+			if n := uint(fieldNumber) - 1; n < uint(len(d)) {
+				f = d[n]
+			}
+		} else {
+			f = info.fieldIndex[fieldNumber]
+		}
 		if f == nil {
 			skip := 0
 			switch wireType {

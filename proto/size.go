@@ -3,9 +3,16 @@ package proto
 import (
 	"math/bits"
 	"unsafe"
+
+	"github.com/RomiChan/protobuf/internal/vm"
 )
 
 type sizeFunc = func(unsafe.Pointer, *structField) int
+
+// tapeSizeFunc is the tape-aware counterpart of sizeFunc: while sizing it
+// records the body size of every nested message it meets on t, so the encode
+// pass can replay them instead of recomputing each subtree.
+type tapeSizeFunc = func(p unsafe.Pointer, f *structField, t *vm.Tape) int
 
 func sizeOfVarint(v uint64) int {
 	// This computes 1 + (bits.Len64(v)-1)/7.

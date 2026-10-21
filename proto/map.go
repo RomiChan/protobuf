@@ -110,17 +110,18 @@ func mapSizeFuncOf(t reflect.Type, f *mapField, pool *sync.Pool) sizeFunc {
 }
 
 func mapEncodeFuncOf(t reflect.Type, f *mapField, pool *sync.Pool) encodeFunc {
-	mapTag := appendVarint(nil, f.wiretag)
+	mapTag := make([]byte, sizeOfVarint(f.wiretag))
+	writeVarint(mapTag, 0, f.wiretag)
 	keyCodec := f.keyField.codec
 	valCodec := f.valField.codec
 
-	return func(b []byte, p unsafe.Pointer, sf *structField) []byte {
+	return func(b []byte, i int, p unsafe.Pointer, sf *structField) int {
 		if p == nil {
-			return b
+			return i
 		}
 		mv := reflect.NewAt(t, p).Elem()
 		if mv.Len() == 0 {
-			return b
+			return i
 		}
 
 		entry := pool.Get().(*mapEntry)
@@ -140,12 +141,12 @@ func mapEncodeFuncOf(t reflect.Type, f *mapField, pool *sync.Pool) encodeFunc {
 			valSize := valCodec.size(val, f.valField)
 			elemSize := keySize + valSize
 
-			b = append(b, mapTag...)
-			b = appendVarint(b, uint64(elemSize))
-			b = keyCodec.encode(b, key, f.keyField)
-			b = valCodec.encode(b, val, f.valField)
+			i += copy(b[i:], mapTag)
+			i = writeVarint(b, i, uint64(elemSize))
+			i = keyCodec.encode(b, i, key, f.keyField)
+			i = valCodec.encode(b, i, val, f.valField)
 		}
-		return b
+		return i
 	}
 }
 

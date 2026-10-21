@@ -13,23 +13,23 @@ var boolOptionCodec = codec{
 func sizeOfBoolOption(p unsafe.Pointer, f *structField) int {
 	o := (*Option[bool])(p)
 	if o.IsSome() {
-		return sizeOfBoolRequired(o.unsafePointer(), f)
+		return sizeOfBoolRequired(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeBoolOption(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeBoolOption(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[bool])(p)
 	if o.IsSome() {
-		return encodeBoolRequired(b, o.unsafePointer(), f)
+		return encodeBoolRequired(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeBoolOption(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[bool])(p)
-	v.some = true
-	return decodeBool(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeBool(b, v.UnsafePointer())
 }
 
 var stringOptionCodec = codec{
@@ -41,23 +41,23 @@ var stringOptionCodec = codec{
 func sizeOfStringOption(p unsafe.Pointer, f *structField) int {
 	o := (*Option[string])(p)
 	if o.IsSome() {
-		return sizeOfStringRequired(o.unsafePointer(), f)
+		return sizeOfStringRequired(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeStringOption(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeStringOption(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[string])(p)
 	if o.IsSome() {
-		return encodeStringRequired(b, o.unsafePointer(), f)
+		return encodeStringRequired(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeStringOption(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[string])(p)
-	v.some = true
-	return decodeString(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeString(b, v.UnsafePointer())
 }
 
 var int32OptionCodec = codec{
@@ -69,23 +69,23 @@ var int32OptionCodec = codec{
 func sizeOfInt32Option(p unsafe.Pointer, f *structField) int {
 	o := (*Option[int32])(p)
 	if o.IsSome() {
-		return sizeOfInt32Required(o.unsafePointer(), f)
+		return sizeOfInt32Required(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeInt32Option(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeInt32Option(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[int32])(p)
 	if o.IsSome() {
-		return encodeInt32Required(b, o.unsafePointer(), f)
+		return encodeInt32Required(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeInt32Option(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[int32])(p)
-	v.some = true
-	return decodeInt32(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeInt32(b, v.UnsafePointer())
 }
 
 var uint32OptionCodec = codec{
@@ -97,23 +97,23 @@ var uint32OptionCodec = codec{
 func sizeOfUint32Option(p unsafe.Pointer, f *structField) int {
 	o := (*Option[uint32])(p)
 	if o.IsSome() {
-		return sizeOfUint32Required(o.unsafePointer(), f)
+		return sizeOfUint32Required(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeUint32Option(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeUint32Option(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[uint32])(p)
 	if o.IsSome() {
-		return encodeUint32Required(b, o.unsafePointer(), f)
+		return encodeUint32Required(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeUint32Option(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[uint32])(p)
-	v.some = true
-	return decodeUint32(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeUint32(b, v.UnsafePointer())
 }
 
 var int64OptionCodec = codec{
@@ -125,23 +125,23 @@ var int64OptionCodec = codec{
 func sizeOfInt64Option(p unsafe.Pointer, f *structField) int {
 	o := (*Option[int64])(p)
 	if o.IsSome() {
-		return sizeOfInt64Required(o.unsafePointer(), f)
+		return sizeOfInt64Required(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeInt64Option(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeInt64Option(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[int64])(p)
 	if o.IsSome() {
-		return encodeInt64Required(b, o.unsafePointer(), f)
+		return encodeInt64Required(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeInt64Option(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[int64])(p)
-	v.some = true
-	return decodeInt64(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeInt64(b, v.UnsafePointer())
 }
 
 var uint64OptionCodec = codec{
@@ -153,23 +153,23 @@ var uint64OptionCodec = codec{
 func sizeOfUint64Option(p unsafe.Pointer, f *structField) int {
 	o := (*Option[uint64])(p)
 	if o.IsSome() {
-		return sizeOfUint64Required(o.unsafePointer(), f)
+		return sizeOfUint64Required(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeUint64Option(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeUint64Option(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[uint64])(p)
 	if o.IsSome() {
-		return encodeUint64Required(b, o.unsafePointer(), f)
+		return encodeUint64Required(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeUint64Option(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[uint64])(p)
-	v.some = true
-	return decodeUint64(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeUint64(b, v.UnsafePointer())
 }
 
 var zigzag32OptionCodec = codec{
@@ -181,23 +181,23 @@ var zigzag32OptionCodec = codec{
 func sizeOfZigzag32Option(p unsafe.Pointer, f *structField) int {
 	o := (*Option[int32])(p)
 	if o.IsSome() {
-		return sizeOfZigzag32Required(o.unsafePointer(), f)
+		return sizeOfZigzag32Required(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeZigzag32Option(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeZigzag32Option(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[int32])(p)
 	if o.IsSome() {
-		return encodeZigzag32Required(b, o.unsafePointer(), f)
+		return encodeZigzag32Required(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeZigzag32Option(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[int32])(p)
-	v.some = true
-	return decodeZigzag32(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeZigzag32(b, v.UnsafePointer())
 }
 
 var zigzag64OptionCodec = codec{
@@ -209,23 +209,23 @@ var zigzag64OptionCodec = codec{
 func sizeOfZigzag64Option(p unsafe.Pointer, f *structField) int {
 	o := (*Option[int64])(p)
 	if o.IsSome() {
-		return sizeOfZigzag64Required(o.unsafePointer(), f)
+		return sizeOfZigzag64Required(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeZigzag64Option(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeZigzag64Option(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[int64])(p)
 	if o.IsSome() {
-		return encodeZigzag64Required(b, o.unsafePointer(), f)
+		return encodeZigzag64Required(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeZigzag64Option(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[int64])(p)
-	v.some = true
-	return decodeZigzag64(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeZigzag64(b, v.UnsafePointer())
 }
 
 var fixed32OptionCodec = codec{
@@ -237,23 +237,23 @@ var fixed32OptionCodec = codec{
 func sizeOfFixed32Option(p unsafe.Pointer, f *structField) int {
 	o := (*Option[uint32])(p)
 	if o.IsSome() {
-		return sizeOfFixed32Required(o.unsafePointer(), f)
+		return sizeOfFixed32Required(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeFixed32Option(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeFixed32Option(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[uint32])(p)
 	if o.IsSome() {
-		return encodeFixed32Required(b, o.unsafePointer(), f)
+		return encodeFixed32Required(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeFixed32Option(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[uint32])(p)
-	v.some = true
-	return decodeFixed32(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeFixed32(b, v.UnsafePointer())
 }
 
 var fixed64OptionCodec = codec{
@@ -265,23 +265,23 @@ var fixed64OptionCodec = codec{
 func sizeOfFixed64Option(p unsafe.Pointer, f *structField) int {
 	o := (*Option[uint64])(p)
 	if o.IsSome() {
-		return sizeOfFixed64Required(o.unsafePointer(), f)
+		return sizeOfFixed64Required(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeFixed64Option(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeFixed64Option(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[uint64])(p)
 	if o.IsSome() {
-		return encodeFixed64Required(b, o.unsafePointer(), f)
+		return encodeFixed64Required(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeFixed64Option(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[uint64])(p)
-	v.some = true
-	return decodeFixed64(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeFixed64(b, v.UnsafePointer())
 }
 
 var float32OptionCodec = codec{
@@ -293,23 +293,23 @@ var float32OptionCodec = codec{
 func sizeOfFloat32Option(p unsafe.Pointer, f *structField) int {
 	o := (*Option[float32])(p)
 	if o.IsSome() {
-		return sizeOfFloat32Required(o.unsafePointer(), f)
+		return sizeOfFloat32Required(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeFloat32Option(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeFloat32Option(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[float32])(p)
 	if o.IsSome() {
-		return encodeFloat32Required(b, o.unsafePointer(), f)
+		return encodeFloat32Required(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeFloat32Option(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[float32])(p)
-	v.some = true
-	return decodeFloat32(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeFloat32(b, v.UnsafePointer())
 }
 
 var float64OptionCodec = codec{
@@ -321,21 +321,21 @@ var float64OptionCodec = codec{
 func sizeOfFloat64Option(p unsafe.Pointer, f *structField) int {
 	o := (*Option[float64])(p)
 	if o.IsSome() {
-		return sizeOfFloat64Required(o.unsafePointer(), f)
+		return sizeOfFloat64Required(o.UnsafePointer(), f)
 	}
 	return 0
 }
 
-func encodeFloat64Option(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeFloat64Option(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	o := (*Option[float64])(p)
 	if o.IsSome() {
-		return encodeFloat64Required(b, o.unsafePointer(), f)
+		return encodeFloat64Required(b, i, o.UnsafePointer(), f)
 	}
-	return b
+	return i
 }
 
 func decodeFloat64Option(b []byte, p unsafe.Pointer) (int, error) {
 	v := (*Option[float64])(p)
-	v.some = true
-	return decodeFloat64(b, v.unsafePointer())
+	v.MarkSome()
+	return decodeFloat64(b, v.UnsafePointer())
 }

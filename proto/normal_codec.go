@@ -19,16 +19,17 @@ func sizeOfBool(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeBool(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeBool(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	if *(*bool)(p) {
-		b = appendVarint(b, f.wiretag)
+		i = writeVarint(b, i, f.wiretag)
 		if *(*bool)(p) { // keep this for code generate
-			b = append(b, 1)
+			b[i] = 1
 		} else {
-			b = append(b, 0)
+			b[i] = 0
 		}
+		i++
 	}
-	return b
+	return i
 }
 
 func decodeBool(b []byte, p unsafe.Pointer) (int, error) {
@@ -53,14 +54,14 @@ func sizeOfBytes(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeBytes(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeBytes(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	v := *(*[]byte)(p)
 	if v != nil {
-		b = appendVarint(b, f.wiretag)
-		b = appendVarint(b, uint64(len(v)))
-		b = append(b, v...)
+		i = writeVarint(b, i, f.wiretag)
+		i = writeVarint(b, i, uint64(len(v)))
+		i += copy(b[i:], v)
 	}
-	return b
+	return i
 }
 
 func decodeBytes(b []byte, p unsafe.Pointer) (int, error) {
@@ -87,14 +88,14 @@ func sizeOfString(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeString(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeString(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	v := *(*string)(p)
 	if v != "" {
-		b = appendVarint(b, f.wiretag)
-		b = appendVarint(b, uint64(len(v)))
-		b = append(b, v...)
+		i = writeVarint(b, i, f.wiretag)
+		i = writeVarint(b, i, uint64(len(v)))
+		i += copy(b[i:], v)
 	}
-	return b
+	return i
 }
 
 func decodeString(b []byte, p unsafe.Pointer) (int, error) {
@@ -120,12 +121,12 @@ func sizeOfFloat32(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeFloat32(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeFloat32(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	if v := *(*float32)(p); v != 0 || math.Signbit(float64(v)) {
-		b = appendVarint(b, f.wiretag)
-		b = encodeLE32(b, math.Float32bits(v))
+		i = writeVarint(b, i, f.wiretag)
+		i = writeLE32(b, i, math.Float32bits(v))
 	}
-	return b
+	return i
 }
 
 func decodeFloat32(b []byte, p unsafe.Pointer) (int, error) {
@@ -147,12 +148,12 @@ func sizeOfFloat64(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeFloat64(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeFloat64(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	if v := *(*float64)(p); v != 0 || math.Signbit(v) {
-		b = appendVarint(b, f.wiretag)
-		b = encodeLE64(b, math.Float64bits(v))
+		i = writeVarint(b, i, f.wiretag)
+		i = writeLE64(b, i, math.Float64bits(v))
 	}
-	return b
+	return i
 }
 
 func decodeFloat64(b []byte, p unsafe.Pointer) (int, error) {
@@ -175,13 +176,13 @@ func sizeOfInt32(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeInt32(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeInt32(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	v := *(*int32)(p)
 	if v != 0 {
-		b = appendVarint(b, f.wiretag)
-		b = appendVarint(b, uint64(v))
+		i = writeVarint(b, i, f.wiretag)
+		i = writeVarint(b, i, uint64(v))
 	}
-	return b
+	return i
 }
 
 func decodeInt32(b []byte, p unsafe.Pointer) (int, error) {
@@ -204,18 +205,18 @@ func sizeOfInt64(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeInt64(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeInt64(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	v := *(*int64)(p)
 	if v != 0 {
-		b = appendVarint(b, f.wiretag)
-		b = appendVarint(b, uint64(v))
+		i = writeVarint(b, i, f.wiretag)
+		i = writeVarint(b, i, uint64(v))
 	}
-	return b
+	return i
 }
 
 func decodeInt64(b []byte, p unsafe.Pointer) (int, error) {
-	v, n, err := decodeVarint(b)
-	*(*int64)(p) = int64(v)
+	u, n, err := decodeVarint(b)
+	*(*int64)(p) = int64(u)
 	return n, err
 }
 
@@ -232,17 +233,17 @@ func sizeOfUint32(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeUint32(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeUint32(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	if v := *(*uint32)(p); v != 0 {
-		b = appendVarint(b, f.wiretag)
-		b = appendVarint(b, uint64(v))
+		i = writeVarint(b, i, f.wiretag)
+		i = writeVarint(b, i, uint64(v))
 	}
-	return b
+	return i
 }
 
 func decodeUint32(b []byte, p unsafe.Pointer) (int, error) {
-	v, n, err := decodeVarint(b)
-	*(*uint32)(p) = uint32(v)
+	u, n, err := decodeVarint(b)
+	*(*uint32)(p) = uint32(u)
 	return n, err
 }
 
@@ -259,12 +260,12 @@ func sizeOfFixed32(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeFixed32(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeFixed32(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	if v := *(*uint32)(p); v != 0 {
-		b = appendVarint(b, f.wiretag)
-		b = encodeLE32(b, v)
+		i = writeVarint(b, i, f.wiretag)
+		i = writeLE32(b, i, v)
 	}
-	return b
+	return i
 }
 
 func decodeFixed32(b []byte, p unsafe.Pointer) (int, error) {
@@ -286,17 +287,17 @@ func sizeOfUint64(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeUint64(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeUint64(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	if v := *(*uint64)(p); v != 0 {
-		b = appendVarint(b, f.wiretag)
-		b = appendVarint(b, v)
+		i = writeVarint(b, i, f.wiretag)
+		i = writeVarint(b, i, v)
 	}
-	return b
+	return i
 }
 
 func decodeUint64(b []byte, p unsafe.Pointer) (int, error) {
-	v, n, err := decodeVarint(b)
-	*(*uint64)(p) = v
+	u, n, err := decodeVarint(b)
+	*(*uint64)(p) = u
 	return n, err
 }
 
@@ -313,12 +314,12 @@ func sizeOfFixed64(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeFixed64(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeFixed64(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	if v := *(*uint64)(p); v != 0 {
-		b = appendVarint(b, f.wiretag)
-		b = encodeLE64(b, v)
+		i = writeVarint(b, i, f.wiretag)
+		i = writeLE64(b, i, v)
 	}
-	return b
+	return i
 }
 
 func decodeFixed64(b []byte, p unsafe.Pointer) (int, error) {
@@ -340,12 +341,12 @@ func sizeOfZigzag32(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeZigzag32(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeZigzag32(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	if v := *(*int32)(p); v != 0 {
-		b = appendVarint(b, f.wiretag)
-		b = appendVarint(b, encodeZigZag64(int64(v)))
+		i = writeVarint(b, i, f.wiretag)
+		i = writeVarint(b, i, encodeZigZag64(int64(v)))
 	}
-	return b
+	return i
 }
 
 func decodeZigzag32(b []byte, p unsafe.Pointer) (int, error) {
@@ -367,16 +368,16 @@ func sizeOfZigzag64(p unsafe.Pointer, f *structField) int {
 	return 0
 }
 
-func encodeZigzag64(b []byte, p unsafe.Pointer, f *structField) []byte {
+func encodeZigzag64(b []byte, i int, p unsafe.Pointer, f *structField) int {
 	if v := *(*int64)(p); v != 0 {
-		b = appendVarint(b, f.wiretag)
-		b = appendVarint(b, encodeZigZag64(v))
+		i = writeVarint(b, i, f.wiretag)
+		i = writeVarint(b, i, encodeZigZag64(v))
 	}
-	return b
+	return i
 }
 
 func decodeZigzag64(b []byte, p unsafe.Pointer) (int, error) {
-	v, n, err := decodeVarint(b)
-	*(*int64)(p) = decodeZigZag64(v)
+	u, n, err := decodeVarint(b)
+	*(*int64)(p) = decodeZigZag64(u)
 	return n, err
 }

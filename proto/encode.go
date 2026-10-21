@@ -1,119 +1,49 @@
 package proto
 
 import (
+	"encoding/binary"
 	"unsafe"
+
+	"github.com/RomiChan/protobuf/internal/vm"
 )
 
 func encodeZigZag64(v int64) uint64 {
 	return (uint64(v) << 1) ^ uint64(v>>63)
 }
 
-type encodeFunc = func([]byte, unsafe.Pointer, *structField) []byte
+// encodeFunc writes the field value to b starting at cursor i and returns the
+// new cursor. Callers guarantee the buffer has enough capacity (Marshal
+// preallocates the exact size), so encoders never grow b.
+type encodeFunc = func(b []byte, i int, p unsafe.Pointer, f *structField) int
 
-func appendVarint(b []byte, v uint64) []byte {
-	switch {
-	case v < 1<<7:
-		b = append(b, byte(v))
-	case v < 1<<14:
-		b = append(b,
-			byte((v>>0)&0x7f|0x80),
-			byte(v>>7))
-	case v < 1<<21:
-		b = append(b,
-			byte((v>>0)&0x7f|0x80),
-			byte((v>>7)&0x7f|0x80),
-			byte(v>>14))
-	case v < 1<<28:
-		b = append(b,
-			byte((v>>0)&0x7f|0x80),
-			byte((v>>7)&0x7f|0x80),
-			byte((v>>14)&0x7f|0x80),
-			byte(v>>21))
-	case v < 1<<35:
-		b = append(b,
-			byte((v>>0)&0x7f|0x80),
-			byte((v>>7)&0x7f|0x80),
-			byte((v>>14)&0x7f|0x80),
-			byte((v>>21)&0x7f|0x80),
-			byte(v>>28))
-	case v < 1<<42:
-		b = append(b,
-			byte((v>>0)&0x7f|0x80),
-			byte((v>>7)&0x7f|0x80),
-			byte((v>>14)&0x7f|0x80),
-			byte((v>>21)&0x7f|0x80),
-			byte((v>>28)&0x7f|0x80),
-			byte(v>>35))
-	case v < 1<<49:
-		b = append(b,
-			byte((v>>0)&0x7f|0x80),
-			byte((v>>7)&0x7f|0x80),
-			byte((v>>14)&0x7f|0x80),
-			byte((v>>21)&0x7f|0x80),
-			byte((v>>28)&0x7f|0x80),
-			byte((v>>35)&0x7f|0x80),
-			byte(v>>42))
-	case v < 1<<56:
-		b = append(b,
-			byte((v>>0)&0x7f|0x80),
-			byte((v>>7)&0x7f|0x80),
-			byte((v>>14)&0x7f|0x80),
-			byte((v>>21)&0x7f|0x80),
-			byte((v>>28)&0x7f|0x80),
-			byte((v>>35)&0x7f|0x80),
-			byte((v>>42)&0x7f|0x80),
-			byte(v>>49))
-	case v < 1<<63:
-		b = append(b,
-			byte((v>>0)&0x7f|0x80),
-			byte((v>>7)&0x7f|0x80),
-			byte((v>>14)&0x7f|0x80),
-			byte((v>>21)&0x7f|0x80),
-			byte((v>>28)&0x7f|0x80),
-			byte((v>>35)&0x7f|0x80),
-			byte((v>>42)&0x7f|0x80),
-			byte((v>>49)&0x7f|0x80),
-			byte(v>>56))
-	default:
-		b = append(b,
-			byte((v>>0)&0x7f|0x80),
-			byte((v>>7)&0x7f|0x80),
-			byte((v>>14)&0x7f|0x80),
-			byte((v>>21)&0x7f|0x80),
-			byte((v>>28)&0x7f|0x80),
-			byte((v>>35)&0x7f|0x80),
-			byte((v>>42)&0x7f|0x80),
-			byte((v>>49)&0x7f|0x80),
-			byte((v>>56)&0x7f|0x80),
-			1)
+// tapeEncodeFunc is the tape-aware counterpart of encodeFunc: nested message
+// bodies are replayed from t instead of being sized again.
+type tapeEncodeFunc = func(b []byte, i int, p unsafe.Pointer, f *structField, t *vm.Tape) int
+
+func writeVarint(b []byte, i int, v uint64) int {
+	for v >= 0x80 {
+		b[i] = byte(v) | 0x80
+		v >>= 7
+		i++
 	}
-	return b
+	b[i] = byte(v)
+	return i + 1
 }
 
-func appendVarintZigZag(b []byte, v int64) []byte {
-	return appendVarint(b, encodeZigZag64(v))
+func writeVarintZigZag(b []byte, i int, v int64) int {
+	return writeVarint(b, i, encodeZigZag64(v))
 }
 
-func encodeLE32(b []byte, v uint32) []byte {
-	return append(b,
-		byte(v>>0),
-		byte(v>>8),
-		byte(v>>16),
-		byte(v>>24))
+func writeLE32(b []byte, i int, v uint32) int {
+	binary.LittleEndian.PutUint32(b[i:], v)
+	return i + 4
 }
 
-func encodeLE64(b []byte, v uint64) []byte {
-	return append(b,
-		byte(v>>0),
-		byte(v>>8),
-		byte(v>>16),
-		byte(v>>24),
-		byte(v>>32),
-		byte(v>>40),
-		byte(v>>48),
-		byte(v>>56))
+func writeLE64(b []byte, i int, v uint64) int {
+	binary.LittleEndian.PutUint64(b[i:], v)
+	return i + 8
 }
 
-func appendTag(b []byte, f fieldNumber, t wireType) []byte {
-	return appendVarint(b, uint64(f)<<3|uint64(t))
+func writeTag(b []byte, i int, f fieldNumber, t wireType) int {
+	return writeVarint(b, i, uint64(f)<<3|uint64(t))
 }

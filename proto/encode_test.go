@@ -21,7 +21,7 @@ func BenchmarkEncodeVarintShort(b *testing.B) {
 	c := [10]byte{}
 
 	for i := 0; i < b.N; i++ {
-		appendVarint(c[:], 0)
+		writeVarint(c[:], 0, 0)
 	}
 }
 
@@ -29,7 +29,7 @@ func BenchmarkEncodeVarintLong(b *testing.B) {
 	c := [10]byte{}
 
 	for i := 0; i < b.N; i++ {
-		appendVarint(c[:], math.MaxUint64)
+		writeVarint(c[:], 0, math.MaxUint64)
 	}
 }
 
@@ -37,7 +37,7 @@ func BenchmarkEncodeTag(b *testing.B) {
 	c := [8]byte{}
 
 	for i := 0; i < b.N; i++ {
-		appendTag(c[:], 1, varint)
+		writeTag(c[:], 0, 1, varint)
 	}
 }
 
@@ -99,11 +99,10 @@ func BenchmarkEncodeSlice(b *testing.B) {
 }
 
 func TestEncodeDecodeVarint(t *testing.T) {
-	var b []byte
+	b := make([]byte, 10)
+	n := writeVarint(b, 0, 42)
 
-	b = appendVarint(b, 42)
-
-	v, _, err := decodeVarint(b)
+	v, _, err := decodeVarint(b[:n])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,10 +112,10 @@ func TestEncodeDecodeVarint(t *testing.T) {
 }
 
 func TestEncodeDecodeVarintZigZag(t *testing.T) {
-	var b []byte
+	b := make([]byte, 10)
+	n := writeVarintZigZag(b, 0, -42)
 
-	b = appendVarintZigZag(b, -42)
-	v, _, err := decodeVarintZigZag(b)
+	v, _, err := decodeVarintZigZag(b[:n])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,10 +125,10 @@ func TestEncodeDecodeVarintZigZag(t *testing.T) {
 }
 
 func TestEncodeDecodeTag(t *testing.T) {
-	var b []byte
+	b := make([]byte, 10)
+	n := writeTag(b, 0, 1, varint)
 
-	b = appendTag(b, 1, varint)
-	num, typ, _, err := decodeTag(b)
+	num, typ, _, err := decodeTag(b[:n])
 	if err != nil {
 		t.Fatal(err)
 	}

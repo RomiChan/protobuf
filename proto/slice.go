@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	. "github.com/RomiChan/protobuf/internal/runtime_reflect"
+	"github.com/RomiChan/protobuf/internal/vm"
 )
 
 var sliceMap sync.Map // map[*codec]*codec for slice
@@ -23,6 +24,12 @@ func sliceCodecOf(t reflect.Type, c *codec, w *walker) *codec {
 	s.size = sliceSizeFuncOf(t, c)
 	s.encode = sliceEncodeFuncOf(t, c)
 	s.decode = sliceDecodeFuncOf(t, c)
+	if c.isMessage {
+		// Repeated message field: forward the element codec's tape funcs so
+		// each element's body size is recorded once and replayed.
+		s.sizeT = sliceSizeTFuncOf(t, c)
+		s.encodeT = sliceEncodeTFuncOf(t, c)
+	}
 
 	actualCodec, _ := sliceMap.LoadOrStore(c, s)
 	return actualCodec.(*codec)
@@ -42,16 +49,41 @@ func sliceSizeFuncOf(t reflect.Type, c *codec) sizeFunc {
 	}
 }
 
-func sliceEncodeFuncOf(t reflect.Type, c *codec) encodeFunc {
+func sliceSizeTFuncOf(t reflect.Type, c *codec) tapeSizeFunc {
 	elemSize := alignedSize(t.Elem())
-	return func(b []byte, p unsafe.Pointer, sf *structField) []byte {
-		if s := (*Slice)(p); s != nil {
-			for i := 0; i < s.Len(); i++ {
-				elem := s.Index(i, elemSize)
-				b = c.encode(b, elem, sf)
+	return func(p unsafe.Pointer, sf *structField, tape *vm.Tape) int {
+		n := 0
+		if v := (*Slice)(p); v != nil {
+			for i := 0; i < v.Len(); i++ {
+				n += c.sizeT(v.Index(i, elemSize), sf, tape)
 			}
 		}
-		return b
+		return n
+	}
+}
+
+func sliceEncodeTFuncOf(t reflect.Type, c *codec) tapeEncodeFunc {
+	elemSize := alignedSize(t.Elem())
+	return func(b []byte, i int, p unsafe.Pointer, sf *structField, tape *vm.Tape) int {
+		if s := (*Slice)(p); s != nil {
+			for k := 0; k < s.Len(); k++ {
+				i = c.encodeT(b, i, s.Index(k, elemSize), sf, tape)
+			}
+		}
+		return i
+	}
+}
+
+func sliceEncodeFuncOf(t reflect.Type, c *codec) encodeFunc {
+	elemSize := alignedSize(t.Elem())
+	return func(b []byte, i int, p unsafe.Pointer, sf *structField) int {
+		if s := (*Slice)(p); s != nil {
+			for k := 0; k < s.Len(); k++ {
+				elem := s.Index(k, elemSize)
+				i = c.encode(b, i, elem, sf)
+			}
+		}
+		return i
 	}
 }
 

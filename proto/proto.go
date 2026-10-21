@@ -6,6 +6,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/RomiChan/protobuf/internal/vm"
 	"github.com/RomiChan/syncx"
 )
 
@@ -19,7 +20,7 @@ func Size(v interface{}) int {
 	}
 	t = t.Elem()
 	info := cachedStructInfoOf(t)
-	return info.size(p)
+	return info.sizeNoTape(p)
 }
 
 func Marshal(v interface{}) ([]byte, error) {
@@ -29,10 +30,29 @@ func Marshal(v interface{}) ([]byte, error) {
 	}
 	t = t.Elem()
 	info := cachedStructInfoOf(t)
-	b := make([]byte, 0, info.size(p))
-	b = info.encode(b, p)
+
+	// The size pass records nested message sizes on a tape so the encode
+	// pass can replay them instead of recomputing each subtree.
+	var tape *vm.Tape
+	if info.hasMessage {
+		tape = tapePool.Get().(*vm.Tape)
+		tape.Reset()
+	}
+	var size int
+	if tape != nil {
+		size = info.sizeTape(p, tape)
+	} else {
+		size = info.sizeNoTape(p)
+	}
+	b := make([]byte, size)
+	info.encode(b, 0, p, tape)
+	if tape != nil {
+		tapePool.Put(tape)
+	}
 	return b, nil
 }
+
+var tapePool = sync.Pool{New: func() any { return new(vm.Tape) }}
 
 func Unmarshal(b []byte, v interface{}) error {
 	if len(b) == 0 {
@@ -103,6 +123,16 @@ type codec struct {
 	size   sizeFunc
 	encode encodeFunc
 	decode decodeFunc
+	// sizeT and encodeT are the tape-aware variants, installed for values
+	// that carry nested messages: struct codecs, and the slice codecs built
+	// on them. They are nil for scalar codecs. Both are always installed
+	// together, so the size pass and the encode pass agree on which values
+	// are recorded on the tape.
+	sizeT   tapeSizeFunc
+	encodeT tapeEncodeFunc
+	// isMessage marks a struct codec, i.e. a value encoded as a nested
+	// message. Slice codecs use it to tell message elements from scalar ones.
+	isMessage bool
 }
 
 var structInfoCache syncx.Map[unsafe.Pointer, *structInfo] // map[unsafe.Pointer]*structInfo
