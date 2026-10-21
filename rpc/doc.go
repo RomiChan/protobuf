@@ -78,7 +78,34 @@
 //
 // # Client
 //
-// Dial a server and issue calls:
+// Create a lazy connection pool for concurrent calls:
+//
+//	client := rpc.NewClient("tcp", "127.0.0.1:9000", rpc.ClientOptions{
+//	    PoolSize:     8,
+//	    DialTimeout:  5 * time.Second,
+//	    CallTimeout:  210 * time.Second, // application policy; disabled by default
+//	    WriteTimeout: 5 * time.Second,
+//	})
+//	defer client.Close()
+//
+//	reply, err := client.Call[AddReply](ctx, "Add", &AddArgs{A: 1, B: 2})
+//
+// The zero ClientOptions uses eight round-robin slots, five-second dial and
+// write timeouts, and no default call timeout. Connections are created on first
+// use and reused; each supports multiple concurrent requests. Concurrent callers
+// selecting the same empty slot share one dial, while different slots dial in
+// parallel. Each caller can cancel its own wait. A shared dial is bounded by the
+// initiating caller's context, DialTimeout, and Client.Close; canceling the
+// initiating caller can therefore fail other callers sharing that dial.
+//
+// CallTimeout includes connection acquisition and respects earlier caller
+// deadlines. It also applies to Client.Notify. Broken connections are discarded
+// on the next use of their slot and dialed again. Failed calls are returned to
+// the caller without replaying them, since the peer may have already executed
+// the request. Method names, request construction, and application-specific type
+// conversions belong in application clients wrapping Client.
+//
+// For a single connection, dial a server directly:
 //
 //	conn, err := rpc.Dial(ctx, "tcp", "127.0.0.1:9000")
 //	if err != nil {
@@ -105,6 +132,20 @@
 // To use a transport other than TCP, wrap any io.ReadWriteCloser with
 // NewConn (client side) or Server.ServeConn (server side).
 //
+// Conn sets a fresh five-second deadline for each write when the transport
+// supports SetWriteDeadline, including net.Conn. NewConn and Dial accept optional
+// ConnOptions to configure WriteTimeout; a negative value disables it. Earlier
+// call deadlines take priority, cancellation can interrupt an active write, and
+// write failures close the transport and fail all pending calls. Canceling while
+// waiting for the write lock does not close the connection. Other transports
+// must provide their own means of bounding blocked writes.
+//
+// # Testing
+//
+// The rpc/rpctest subpackage provides in-memory servers with automatic test
+// cleanup, pooled clients, and connection interruption for recovery tests. It
+// works with testing/synctest to test timeouts without waiting in real time.
+//
 // # Errors
 //
 // When a call fails on the peer, Call returns a non-nil error of type
@@ -122,6 +163,10 @@
 // application-defined codes may use any other value.
 //
 // # Lifecycle
+//
+// Client.Close prevents further dialing, cancels active dials, wakes connection
+// waiters with ErrClientClosed, and closes every connection in the pool. It is
+// safe to call concurrently or repeatedly.
 //
 // Conn.Close shuts a connection down: pending calls fail immediately and
 // in-flight handler goroutines are waited for. Conn.Done is closed when

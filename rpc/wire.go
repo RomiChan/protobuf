@@ -33,7 +33,10 @@ func writeFrame(w io.Writer, f *frame) error {
 	buf := make([]byte, 4, 4+len(payload))
 	binary.BigEndian.PutUint32(buf, uint32(len(payload)))
 	buf = append(buf, payload...)
-	_, err = w.Write(buf)
+	n, err := w.Write(buf)
+	if err == nil && n != len(buf) {
+		err = io.ErrShortWrite
+	}
 	return err
 }
 

@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/RomiChan/protobuf/proto"
 )
 
 // drain discards everything written to c so that writes to its peer do
@@ -337,5 +339,165 @@ func TestTCPRoundTrip(t *testing.T) {
 	}
 	if reply.Msg != "over tcp" {
 		t.Fatalf("reply.Msg = %q", reply.Msg)
+	}
+}
+
+func TestConnWriteTimeout(t *testing.T) {
+	for _, notify := range []bool{false, true} {
+		a, b := net.Pipe()
+		c := NewConn(a, ConnOptions{WriteTimeout: 20 * time.Millisecond})
+		t.Cleanup(func() { c.Close(); b.Close() })
+		result := make(chan error, 1)
+		go func() {
+			if notify {
+				result <- c.Notify(context.Background(), "notify", (*echoArgs)(nil))
+			} else {
+				_, err := c.Call[echoReply](context.Background(), "echo", (*echoArgs)(nil))
+				result <- err
+			}
+		}()
+		var timeout net.Error
+		if err := receive(t, result); !errors.As(err, &timeout) || !timeout.Timeout() {
+			t.Fatalf("write error = %v, want timeout", err)
+		}
+		receive(t, c.Done())
+	}
+}
+
+func TestConnWriteUsesCallDeadline(t *testing.T) {
+	a, b := net.Pipe()
+	defer b.Close()
+	c := NewConn(a, ConnOptions{WriteTimeout: time.Hour})
+	defer c.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	result := make(chan error, 1)
+	go func() {
+		_, err := c.Call[echoReply](ctx, "echo", (*echoArgs)(nil))
+		result <- err
+	}()
+	if err := receive(t, result); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("write error = %v, want context.DeadlineExceeded", err)
+	}
+	receive(t, c.Done())
+}
+
+// observedWriteConn signals when the first transport write is blocked.
+type observedWriteConn struct {
+	net.Conn
+	once    sync.Once
+	started chan struct{}
+}
+
+func (c *observedWriteConn) Write(p []byte) (int, error) {
+	c.once.Do(func() { close(c.started) })
+	return c.Conn.Write(p)
+}
+
+func TestConnCancelWhileWritingAndWaitingForWriter(t *testing.T) {
+	a, b := net.Pipe()
+	defer b.Close()
+	transport := &observedWriteConn{Conn: a, started: make(chan struct{})}
+	c := NewConn(transport, ConnOptions{WriteTimeout: -1})
+	defer c.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	first := make(chan error, 1)
+	go func() {
+		_, err := c.Call[echoReply](ctx, "echo", (*echoArgs)(nil))
+		first <- err
+	}()
+	receive(t, transport.started)
+	waiter, cancelWaiter := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancelWaiter()
+	second := make(chan error, 1)
+	go func() { second <- c.Notify(waiter, "notify", (*echoArgs)(nil)) }()
+	if err := receive(t, second); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("waiting writer error = %v", err)
+	}
+	select {
+	case <-c.Done():
+		t.Fatal("canceling a waiting writer closed the transport")
+	default:
+	}
+	cancel()
+	if err := receive(t, first); !errors.Is(err, context.Canceled) {
+		t.Fatalf("active writer error = %v", err)
+	}
+	receive(t, c.Done())
+}
+
+func TestConnCanceledCallDoesNotWrite(t *testing.T) {
+	a, b := net.Pipe()
+	defer b.Close()
+	transport := &observedWriteConn{Conn: a, started: make(chan struct{})}
+	c := NewConn(transport)
+	defer c.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := c.Call[echoReply](ctx, "echo", (*echoArgs)(nil)); !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
+	select {
+	case <-transport.started:
+		t.Fatal("canceled call wrote a request")
+	default:
+	}
+}
+
+type failingWriteTransport struct {
+	io.ReadWriteCloser
+	err   error
+	short bool
+}
+
+func (c *failingWriteTransport) Write(p []byte) (int, error) {
+	if c.short {
+		return len(p) - 1, nil
+	}
+	return 0, c.err
+}
+
+func TestConnWriteFailureClosesTransport(t *testing.T) {
+	writeErr := errors.New("write failed")
+	for _, short := range []bool{false, true} {
+		a, b := net.Pipe()
+		c := NewConn(&failingWriteTransport{ReadWriteCloser: a, err: writeErr, short: short})
+		t.Cleanup(func() { c.Close(); b.Close() })
+		want := writeErr
+		if short {
+			want = io.ErrShortWrite
+		}
+		if err := c.Notify(context.Background(), "notify", (*echoArgs)(nil)); !errors.Is(err, want) {
+			t.Fatal(err)
+		}
+		receive(t, c.Done())
+	}
+}
+
+func TestServerResponseWriteFailureDoesNotDeadlock(t *testing.T) {
+	a, b := net.Pipe()
+	defer b.Close()
+	c := newConn(context.Background(), a, &testHandler{}, ConnOptions{WriteTimeout: 20 * time.Millisecond})
+	defer c.Close()
+	if err := writeFrame(b, &frame{ID: proto.Some[int64](1), Method: "noresult"}); err != nil {
+		t.Fatal(err)
+	}
+	// The peer never reads the response. A handler writing it must be able to
+	// shut down the connection without waiting for its own goroutine to exit.
+	receive(t, c.Done())
+}
+
+func TestConnWriteDeadlineRefresh(t *testing.T) {
+	a, b := net.Pipe()
+	c := NewConn(a, ConnOptions{WriteTimeout: 40 * time.Millisecond})
+	defer c.Close()
+	go NewServer(&testHandler{}).ServeConn(context.Background(), b)
+	for range 2 {
+		if _, err := c.Call[echoReply](context.Background(), "echo", &echoArgs{Msg: "hello"}); err != nil {
+			t.Fatal(err)
+		}
+		// An expired deadline from the previous write must not affect the next.
+		time.Sleep(60 * time.Millisecond)
 	}
 }
